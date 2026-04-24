@@ -5,6 +5,12 @@
 "   url  : feed URL (required)
 "   icon : header icon (default '📰')
 "   max  : maximum number of items to display (default 0 = all)
+"   content_selector : when fetching an article, narrow the HTML to this
+"     element before extracting paragraphs.  Accepts CSS-ish selectors:
+"       'tag'   — e.g. 'article', 'main'
+"       '#foo'  — any tag with id="foo"
+"       '.bar'  — any tag whose class list contains 'bar'
+"     When unset, the widget tries <article> then <main> automatically.
 
 let s:instances = []
 let s:colors_ready = 0
@@ -98,30 +104,153 @@ function! s:fetch(id, timer) abort
         \ })
 endfunction
 
-function! s:parse_article(title, html) abort
+" Strip noise tags globally.
+function! s:strip_noise(html) abort
+  let html = a:html
+  for t in ['script', 'style', 'noscript', 'iframe', 'svg',
+        \    'nav', 'header', 'footer', 'aside', 'form']
+    let html = substitute(html,
+          \ '<' .. t .. '\%(\s\_[^>]*\)\?>\_.\{-}</' .. t .. '\_[^>]*>',
+          \ '', 'g')
+  endfor
+  return html
+endfunction
+
+" Scan forward from start_inner until the matching close tag, counting
+" nested opens/closes.  Returns [inner_start, inner_end] byte offsets or
+" [-1, -1] if no balanced close is found.
+function! s:balanced_inner(html, opening_end, tag) abort
+  let pat = '\c<\(/\?\)' .. a:tag .. '\%(\s[^>]*\|/\?\)\?>'
+  let depth = 1
+  let i = a:opening_end
+  while 1
+    let m = match(a:html, pat, i)
+    if m < 0
+      return [-1, -1]
+    endif
+    let end = matchend(a:html, pat, i)
+    let is_close = (a:html[m + 1] ==# '/')
+    if is_close
+      let depth -= 1
+      if depth == 0
+        return [a:opening_end, m]
+      endif
+    else
+      let depth += 1
+    endif
+    let i = end
+  endwhile
+endfunction
+
+" Extract content matching selector.  Returns '' on no match.
+function! s:extract_selector(html, selector) abort
+  if a:selector ==# ''
+    return ''
+  endif
+  if a:selector[0] ==# '#'
+    let id = a:selector[1:]
+    let pat = '\c<\(\w\+\)\%(\s[^>]*\)\?\<id\s*=\s*["'']' .. id .. '["''][^>]*>'
+  elseif a:selector[0] ==# '.'
+    let cls = a:selector[1:]
+    let pat = '\c<\(\w\+\)\%(\s[^>]*\)\?\<class\s*=\s*["''][^"'']*\<' .. cls
+          \ .. '\>[^"'']*["''][^>]*>'
+  else
+    let pat = '\c<\(' .. a:selector .. '\)\%(\s[^>]*\)\?>'
+  endif
+  let open = match(a:html, pat)
+  if open < 0
+    return ''
+  endif
+  let open_end = matchend(a:html, pat)
+  let tag = matchlist(a:html, pat)[1]
+  let range = s:balanced_inner(a:html, open_end, tag)
+  if range[0] < 0
+    " Fallback: non-greedy up to first matching close, good enough for
+    " rarely-nested tags like <article>/<main>.
+    let inner = matchstr(a:html[open_end :],
+          \ '\_.\{-}\ze<\/' .. tag .. '\_[^>]*>')
+    return inner
+  endif
+  return a:html[range[0] : range[1] - 1]
+endfunction
+
+" Pull the article body out of the page.  First tries the instance's
+" content_selector param, then <article>, then <main>.  Returns the
+" narrowed HTML, or the whole thing if nothing matched.
+function! s:narrow_body(html, selector) abort
+  let html = s:strip_noise(a:html)
+  for sel in [a:selector, 'article', 'main']
+    if sel ==# ''
+      continue
+    endif
+    let inner = s:extract_selector(html, sel)
+    if inner !=# ''
+      return inner
+    endif
+  endfor
+  return html
+endfunction
+
+function! s:decode_html_entities(s) abort
+  let s = a:s
+  let s = substitute(s, '&nbsp;', ' ', 'g')
+  let s = substitute(s, '&lt;', '<', 'g')
+  let s = substitute(s, '&gt;', '>', 'g')
+  let s = substitute(s, '&quot;', '"', 'g')
+  let s = substitute(s, '&#39;', "'", 'g')
+  let s = substitute(s, '&amp;', '\&', 'g')
+  return s
+endfunction
+
+" Collect <p> inner text blocks, one line per paragraph.  Returns [] if
+" nothing substantive found.
+function! s:extract_paragraphs(html) abort
+  let lines = []
+  let rest = a:html
+  while 1
+    let m = matchstrpos(rest, '<p\%(\s\_[^>]*\)\?>\zs\_.\{-}\ze</p\_[^>]*>')
+    if m[1] < 0
+      break
+    endif
+    let inner = m[0]
+    let inner = substitute(inner, '<br\s*/\?>', '\n', 'g')
+    let inner = substitute(inner, '<[^>]*>', '', 'g')
+    let inner = s:decode_html_entities(inner)
+    for l in split(inner, '\n')
+      let l = substitute(l, '^\s\+\|\s\+$', '', 'g')
+      if strchars(l) >= 15
+        call add(lines, l)
+      endif
+    endfor
+    let rest = rest[m[2] :]
+  endwhile
+  return lines
+endfunction
+
+function! s:parse_article(title, selector, html) abort
   let lines = [a:title, '']
   if a:html ==# ''
     call add(lines, '(記事の取得に失敗しました)')
   else
-    let text = a:html
-    let text = substitute(text, '<script\_.\{-}</script>', '', 'g')
-    let text = substitute(text, '<style\_.\{-}</style>', '', 'g')
-    let text = substitute(text, '<br\s*/\?>', '\n', 'g')
-    let text = substitute(text, '<\/\?p\(\s[^>]*\)\?>', '\n', 'g')
-    let text = substitute(text, '<[^>]*>', '', 'g')
-    let text = substitute(text, '&amp;', '\&', 'g')
-    let text = substitute(text, '&lt;', '<', 'g')
-    let text = substitute(text, '&gt;', '>', 'g')
-    let text = substitute(text, '&quot;', '"', 'g')
-    let text = substitute(text, '&#39;', "'", 'g')
-    let text = substitute(text, '&nbsp;', ' ', 'g')
-    let text = substitute(text, '\r', '', 'g')
-    for l in split(text, '\n')
-      let l = substitute(l, '^\s\+\|\s\+$', '', 'g')
-      if l !=# ''
-        call add(lines, l)
-      endif
-    endfor
+    let body = s:narrow_body(a:html, a:selector)
+    let paragraphs = s:extract_paragraphs(body)
+    if len(paragraphs) >= 2
+      call extend(lines, paragraphs)
+    else
+      " Fall back to plain strip-all of the (narrowed) body.
+      let text = body
+      let text = substitute(text, '<br\s*/\?>', '\n', 'g')
+      let text = substitute(text, '<\/\?p\(\s[^>]*\)\?>', '\n', 'g')
+      let text = substitute(text, '<[^>]*>', '', 'g')
+      let text = s:decode_html_entities(text)
+      let text = substitute(text, '\r', '', 'g')
+      for l in split(text, '\n')
+        let l = substitute(l, '^\s\+\|\s\+$', '', 'g')
+        if l !=# ''
+          call add(lines, l)
+        endif
+      endfor
+    endif
   endif
   if len(lines) > 40
     let lines = lines[:39] + ['', '...']
@@ -147,7 +276,8 @@ function! s:on_done(id, popup_id, gen, title, job, status) abort
     return
   endif
   let html = a:status == 0 ? join(inst.fetch_buf, "\n") : ''
-  call popup_settext(a:popup_id, s:parse_article(a:title, html))
+  call popup_settext(a:popup_id,
+        \ s:parse_article(a:title, inst.content_selector, html))
 endfunction
 
 function! s:on_popup_filter(id, key) abort
@@ -300,6 +430,7 @@ function! supertabpanel#widgets#rssfeed#instance(params) abort
         \ url: get(a:params, 'url', ''),
         \ icon: get(a:params, 'icon', '📰'),
         \ max: get(a:params, 'max', 0),
+        \ content_selector: get(a:params, 'content_selector', ''),
         \ items: [],
         \ selected: -1,
         \ popup: -1,

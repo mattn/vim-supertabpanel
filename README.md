@@ -147,7 +147,7 @@ let g:supertabpanel_panels = [
 
 | widget            | params                                                       |
 | ----------------- | ------------------------------------------------------------ |
-| `rssfeed`         | `url` (required), `name`, `icon`, `max` (0 = all)            |
+| `rssfeed`         | `url` (required), `name`, `icon`, `max`, `content_selector` (CSS-ish: `tag` / `#id` / `.class`) |
 | `podcast`         | `url` (required), `name`, `icon`                             |
 | `radio`           | `stations` (list of `#{ name, url }`)                        |
 | `stockticker`     | `symbols` (list of Yahoo tickers)                            |
