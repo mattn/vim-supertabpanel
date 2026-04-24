@@ -24,6 +24,8 @@ endif
 command! SuperTabPanel         call supertabpanel#toggle()
 command! SuperTabPanelRotate   call supertabpanel#rotate(1)
 command! SuperTabPanelRotateBack call supertabpanel#rotate(-1)
+command! -nargs=1 -complete=customlist,supertabpanel#complete_panel
+      \ SuperTabPanelActivate call supertabpanel#activate(<q-args>)
 
 if !hasmapto('<Plug>(supertabpanel-toggle)', 'n')
   nmap <silent> ,tt <Plug>(supertabpanel-toggle)

@@ -38,8 +38,59 @@ function! supertabpanel#panels() abort
   return copy(s:panels)
 endfunction
 
+" Return just the panel names in order — convenient for menus, pickers
+" and command completion.
+function! supertabpanel#panel_names() abort
+  return map(copy(s:panels), 'v:val.name')
+endfunction
+
 function! supertabpanel#current_panel() abort
   return s:current_panel
+endfunction
+
+function! s:resolve_panel(panel) abort
+  if type(a:panel) == v:t_string
+    let i = 0
+    for p in s:panels
+      if p.name ==# a:panel
+        return i
+      endif
+      let i += 1
+    endfor
+    return -1
+  endif
+  if type(a:panel) == v:t_number
+    return a:panel >= 0 && a:panel < len(s:panels) ? a:panel : -1
+  endif
+  return -1
+endfunction
+
+" Activate a panel by name or index.  Opens the tabpanel if it's
+" currently hidden.  Returns 1 on success, 0 if the panel isn't found.
+function! supertabpanel#activate(panel) abort
+  let idx = s:resolve_panel(a:panel)
+  if idx < 0
+    return 0
+  endif
+  if s:anim_timer > 0
+    call timer_stop(s:anim_timer)
+    let s:anim_timer = -1
+  endif
+  if &showtabpanel == 0
+    let s:current_panel = idx
+    call s:activate_current()
+    let &tabpanelopt = 'columns:' .. s:columns .. ',vert,scroll,scrollbar'
+    set showtabpanel=2
+  else
+    call supertabpanel#switch_panel(idx)
+  endif
+  return 1
+endfunction
+
+" Command-completion helper: panel names matching the current prefix.
+function! supertabpanel#complete_panel(lead, ...) abort
+  return filter(supertabpanel#panel_names(),
+        \ 'stridx(v:val, a:lead) == 0')
 endfunction
 
 function! supertabpanel#columns() abort

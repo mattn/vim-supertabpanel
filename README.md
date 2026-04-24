@@ -31,11 +31,21 @@ git clone https://github.com/mattn/vim-supertabpanel \
 The panel auto-configures on `VimEnter` with a default widget layout.
 Three commands and three `<Plug>` maps are provided:
 
-| Command                      | Default map | Description                |
-| ---------------------------- | ----------- | -------------------------- |
-| `:SuperTabPanel`             | `,tt`       | Toggle the panel open/shut |
-| `:SuperTabPanelRotate`       | `,tr`       | Rotate to the next panel   |
-| `:SuperTabPanelRotateBack`   | `,tR`       | Rotate to the previous one |
+| Command                         | Default map | Description                             |
+| ------------------------------- | ----------- | --------------------------------------- |
+| `:SuperTabPanel`                | `,tt`       | Toggle the panel open/shut              |
+| `:SuperTabPanelRotate`          | `,tr`       | Rotate to the next panel                |
+| `:SuperTabPanelRotateBack`      | `,tR`       | Rotate to the previous one              |
+| `:SuperTabPanelActivate {name}` |             | Jump to a named panel (tab-completes)   |
+
+From Vim script the same is available programmatically:
+
+```vim
+echo supertabpanel#panel_names()           " ['Time', 'Feed', 'Tech', ...]
+echo supertabpanel#current_panel_name()    " 'Feed'
+call supertabpanel#activate('Feed')        " by name
+call supertabpanel#activate(2)             " by index
+```
 
 The default maps are only installed if you haven't already bound
 `<Plug>(supertabpanel-toggle)`, `<Plug>(supertabpanel-rotate)` or
