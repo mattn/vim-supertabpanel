@@ -19,18 +19,22 @@ endfunction
 " embedded keycodes (e.g. <80>ku) into plain text like <Up>; this both
 " makes the preview readable and keeps control bytes out of the tabpanel
 " format string, which otherwise slows down animation redraws badly.
+" Undo keytrans' expansion of plain whitespace so literal spaces/tabs
+" don't bloat the preview into multiple cells each.  The cache holds the
+" untruncated sanitized form, so panel width changes apply on the next
+" render instead of re-using a stale truncation.
 function! s:preview_of(val) abort
   let cached = get(s:preview_cache, a:val, v:null)
-  if cached isnot v:null
-    return cached
+  if cached is v:null
+    let p = keytrans(a:val)
+    let p = substitute(p, '<Space>', ' ', 'g')
+    let p = substitute(p, '<Tab>',   ' ', 'g')
+    let p = substitute(p, '<NL>',    '⏎', 'g')
+    let cached = p
+    let s:preview_cache[a:val] = cached
   endif
-  let p = keytrans(a:val)
-  let p = substitute(p, '\n', '⏎', 'g')
-  let p = substitute(p, '\t', '⇥', 'g')
-  let p = supertabpanel#truncate(p, supertabpanel#content_width(12))
-  let p = substitute(p, '%', '%%', 'g')
-  let s:preview_cache[a:val] = p
-  return p
+  let p = supertabpanel#truncate(cached, supertabpanel#content_width(12))
+  return substitute(p, '%', '%%', 'g')
 endfunction
 
 function! supertabpanel#widgets#macros#render() abort

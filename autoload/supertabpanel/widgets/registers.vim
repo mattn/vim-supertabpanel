@@ -24,18 +24,22 @@ endfunction
 " keytrans() sanitizes embedded keycodes to plain text like <Esc>, which
 " both reads better and keeps control bytes out of the tabpanel format
 " string (otherwise redraws during rotation animation are expensive).
+" Undo keytrans' expansion of plain whitespace — we only care about
+" special keys, not every literal space/tab becoming '<Space>'/<Tab>.
+" The cache holds the untruncated sanitized form so panel width changes
+" stay correct on the next render.
 function! s:preview_of(val) abort
   let cached = get(s:preview_cache, a:val, v:null)
-  if cached isnot v:null
-    return cached
+  if cached is v:null
+    let p = keytrans(a:val)
+    let p = substitute(p, '<Space>', ' ', 'g')
+    let p = substitute(p, '<Tab>',   ' ', 'g')
+    let p = substitute(p, '<NL>',    '⏎', 'g')
+    let cached = p
+    let s:preview_cache[a:val] = cached
   endif
-  let p = keytrans(a:val)
-  let p = substitute(p, '\n', ' ', 'g')
-  let p = substitute(p, '\t', ' ', 'g')
-  let p = supertabpanel#truncate(p, supertabpanel#content_width(5))
-  let p = substitute(p, '%', '%%', 'g')
-  let s:preview_cache[a:val] = p
-  return p
+  let p = supertabpanel#truncate(cached, supertabpanel#content_width(5))
+  return substitute(p, '%', '%%', 'g')
 endfunction
 
 function! supertabpanel#widgets#registers#render() abort
