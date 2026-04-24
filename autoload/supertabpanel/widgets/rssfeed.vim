@@ -22,10 +22,15 @@ endfunction
 
 function! s:decode_entities(s) abort
   let s = a:s
+  " Numeric character references — handle these first so e.g. &#38; (=&)
+  " doesn't get misinterpreted as the start of a named entity.
+  let s = substitute(s, '&#x\(\x\+\);',
+        \ '\=nr2char(str2nr(submatch(1), 16))', 'g')
+  let s = substitute(s, '&#\(\d\+\);',
+        \ '\=nr2char(str2nr(submatch(1)))', 'g')
   let s = substitute(s, '&lt;', '<', 'g')
   let s = substitute(s, '&gt;', '>', 'g')
   let s = substitute(s, '&quot;', '"', 'g')
-  let s = substitute(s, '&#39;', "'", 'g')
   let s = substitute(s, '&apos;', "'", 'g')
   let s = substitute(s, '&amp;', '\&', 'g')
   return s
