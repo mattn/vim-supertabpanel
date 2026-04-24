@@ -1,5 +1,7 @@
 " vim-supertabpanel : macros widget (replay registers a-z)
 
+let s:preview_cache = {}
+
 function! s:setup_colors() abort
   hi default SuperTabPanelMacHead guifg=#7dcfff guibg=#1a1b26 gui=bold cterm=bold ctermfg=117 ctermbg=234
   hi default SuperTabPanelMacName guifg=#bb9af7 guibg=#1a1b26 ctermfg=141 ctermbg=234
@@ -13,6 +15,24 @@ function! supertabpanel#widgets#macros#play(info) abort
   return 1
 endfunction
 
+" Build the display preview for a raw register value.  keytrans() turns
+" embedded keycodes (e.g. <80>ku) into plain text like <Up>; this both
+" makes the preview readable and keeps control bytes out of the tabpanel
+" format string, which otherwise slows down animation redraws badly.
+function! s:preview_of(val) abort
+  let cached = get(s:preview_cache, a:val, v:null)
+  if cached isnot v:null
+    return cached
+  endif
+  let p = keytrans(a:val)
+  let p = substitute(p, '\n', '⏎', 'g')
+  let p = substitute(p, '\t', '⇥', 'g')
+  let p = supertabpanel#truncate(p, supertabpanel#content_width(12))
+  let p = substitute(p, '%', '%%', 'g')
+  let s:preview_cache[a:val] = p
+  return p
+endfunction
+
 function! supertabpanel#widgets#macros#render() abort
   let result = '%#SuperTabPanelMacHead#  🎬 Macros%@'
   let any = 0
@@ -23,13 +43,9 @@ function! supertabpanel#widgets#macros#render() abort
       continue
     endif
     let any = 1
-    let preview = substitute(val, '\n', '⏎', 'g')
-    let preview = substitute(preview, '\t', '⇥', 'g')
-    let preview = supertabpanel#truncate(preview, supertabpanel#content_width(12))
-    let preview = substitute(preview, '%', '%%', 'g')
     let result ..= '%' .. i .. '[supertabpanel#widgets#macros#play]'
           \ .. '%#SuperTabPanelMacName#  @' .. name .. ' '
-          \ .. '%#SuperTabPanelMac#' .. preview .. '%[]%@'
+          \ .. '%#SuperTabPanelMac#' .. s:preview_of(val) .. '%[]%@'
   endfor
   if !any
     let result ..= '%#SuperTabPanelMac#  (no recorded macros)%@'
