@@ -1,7 +1,17 @@
 " vim-supertabpanel : podcast widget (RSS feed, plays episodes via ffplay)
 
-let s:feed = get(g:, 'supertabpanel_podcast_feed',
-      \ 'https://feeds.megaphone.fm/TFM9640066968')
+" Feeds can be configured either as a list of {name, url} dicts:
+"   let g:supertabpanel_podcast_feeds = [
+"         \ #{ name: 'Show A', url: '...' },
+"         \ #{ name: 'Show B', url: '...' },
+"         \ ]
+" or as a single URL in g:supertabpanel_podcast_feed (kept for compat).
+let s:feeds = get(g:, 'supertabpanel_podcast_feeds', [])
+if empty(s:feeds)
+  let s:feeds = [#{ name: '', url: get(g:, 'supertabpanel_podcast_feed',
+        \ 'https://feeds.megaphone.fm/TFM9640066968') }]
+endif
+let s:current_feed = 0
 let s:episodes = []
 let s:channel_title = ''
 let s:fetch_buf = []
@@ -86,14 +96,27 @@ function! s:fetch(timer) abort
     return
   endif
   if s:fetch_job isnot v:null && job_status(s:fetch_job) ==# 'run'
-    return
+    call job_stop(s:fetch_job)
   endif
   let s:fetch_buf = []
-  let s:fetch_job = job_start(['curl', '-sL', s:feed], #{
+  let s:fetch_job = job_start(['curl', '-sL', s:feeds[s:current_feed].url], #{
         \ out_cb: function('s:on_chunk'),
         \ exit_cb: function('s:on_done'),
         \ mode: 'raw',
         \ })
+endfunction
+
+function! supertabpanel#widgets#podcast#cycle_feed(info) abort
+  if len(s:feeds) <= 1
+    return 0
+  endif
+  call s:stop()
+  let s:current_feed = (s:current_feed + 1) % len(s:feeds)
+  let s:episodes = []
+  let s:channel_title = ''
+  call s:fetch(0)
+  redrawtabpanel
+  return 1
 endfunction
 
 function! s:stop() abort
@@ -128,10 +151,20 @@ function! supertabpanel#widgets#podcast#stop(info) abort
 endfunction
 
 function! supertabpanel#widgets#podcast#render() abort
-  let label = s:channel_title !=# '' ? s:channel_title : 'Podcast'
-  let label = supertabpanel#truncate(label, supertabpanel#content_width(8))
+  let name = s:feeds[s:current_feed].name
+  if name ==# ''
+    let name = s:channel_title !=# '' ? s:channel_title : 'Podcast'
+  endif
+  let multi = len(s:feeds) > 1
+  let label = supertabpanel#truncate(name, supertabpanel#content_width(multi ? 8 : 6))
   let label = substitute(label, '%', '%%', 'g')
-  let result = '%#SuperTabPanelPcHead#  🎙 ' .. label .. '%@'
+  let result = ''
+  if multi
+    let result ..= '%0[supertabpanel#widgets#podcast#cycle_feed]'
+          \ .. '%#SuperTabPanelPcHead#  🎙 ' .. label .. ' ⇄ %[]%@'
+  else
+    let result ..= '%#SuperTabPanelPcHead#  🎙 ' .. label .. '%@'
+  endif
   if empty(s:episodes)
     return result .. '%#SuperTabPanelPc#  fetching...%@'
   endif
