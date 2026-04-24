@@ -65,7 +65,7 @@ The default layout groups widgets into these panels:
 - **Nav** — buffers, recent files, marks, jumplist, tags
 - **Edit** — quickfix, diagnostics, registers, macros, undo, clipboard, terminals, quicklaunch
 - **Work** — todo, pomodoro
-- **Ops** — build, tests, docker, Kubernetes pods, system monitor (CPU/MEM/BAT)
+- **Ops** — system monitor (CPU/MEM/BAT), build, tests, docker, Kubernetes pods
 - **AI** — Claude chat, explain, commit message, translate
 - **Game** — tetris, snake, 2048, game of life
 - **Media** — piano, web radio, podcast
