@@ -4,6 +4,7 @@
 "   name : display name shown in the header (required)
 "   url  : feed URL (required)
 "   icon : header icon (default '📰')
+"   max  : maximum number of items to display (default 0 = all)
 
 let s:instances = []
 let s:colors_ready = 0
@@ -230,8 +231,9 @@ function! s:render(id) abort
     return header .. '  %#SuperTabPanelRss#fetching...%@'
   endif
   let result = header .. '%@'
+  let items = inst.max > 0 ? inst.items[: inst.max - 1] : inst.items
   let idx = 0
-  for item in inst.items
+  for item in items
     let display = supertabpanel#truncate(item.title, supertabpanel#content_width(5))
     let display = substitute(display, '%', '%%', 'g')
     let mark = idx == inst.selected ? '▶ ' : '  '
@@ -289,6 +291,7 @@ function! supertabpanel#widgets#rssfeed#instance(params) abort
         \ name: get(a:params, 'name', 'RSS'),
         \ url: get(a:params, 'url', ''),
         \ icon: get(a:params, 'icon', '📰'),
+        \ max: get(a:params, 'max', 0),
         \ items: [],
         \ selected: -1,
         \ popup: -1,

@@ -57,6 +57,12 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \   #{ widget: 'rssfeed', params: #{
       \     name: '朝日新聞',
       \     url: 'https://www.asahi.com/rss/asahi/newsheadlines.rdf',
+      \     max: 5,
+      \   }},
+      \   #{ widget: 'rssfeed', params: #{
+      \     name: '毎日新聞',
+      \     url: 'https://mainichi.jp/rss/etc/mainichi-flash.rss',
+      \     max: 5,
       \   }},
       \ ]},
       \ #{ name: 'Tech',      items: [
