@@ -6,11 +6,14 @@ let s:buf = []
 let s:stories = []
 let s:pending_ids = []
 let s:pending_jobs = {}
+let s:opened = -1
+let s:opened_timer = -1
 
 function! s:setup_colors() abort
   hi default SuperTabPanelHnHead  guifg=#e0af68 guibg=#1a1b26 gui=bold cterm=bold ctermfg=179 ctermbg=234
   hi default SuperTabPanelHn      guifg=#a9b1d6 guibg=#1a1b26 ctermfg=249 ctermbg=234
   hi default SuperTabPanelHnScore guifg=#f7768e guibg=#1a1b26 ctermfg=204 ctermbg=234
+  hi default SuperTabPanelHnOpen  guifg=#9ece6a guibg=#1a1b26 gui=bold cterm=bold ctermfg=149 ctermbg=234
 endfunction
 
 function! s:on_ids_chunk(ch, msg) abort
@@ -83,6 +86,12 @@ function! supertabpanel#widgets#hackernews#fetch(timer) abort
         \ })
 endfunction
 
+function! s:clear_opened(timer) abort
+  let s:opened = -1
+  let s:opened_timer = -1
+  redrawtabpanel
+endfunction
+
 function! supertabpanel#widgets#hackernews#open(info) abort
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:stories)
@@ -96,6 +105,12 @@ function! supertabpanel#widgets#hackernews#open(info) abort
     elseif executable('open')
       call job_start(['open', url])
     endif
+    let s:opened = idx
+    if s:opened_timer != -1
+      call timer_stop(s:opened_timer)
+    endif
+    let s:opened_timer = timer_start(800, function('s:clear_opened'))
+    redrawtabpanel
   endif
   return 1
 endfunction
@@ -110,9 +125,13 @@ function! supertabpanel#widgets#hackernews#render() abort
     let title = supertabpanel#truncate(get(s, 'title', ''), supertabpanel#content_width(9))
     let title = substitute(title, '%', '%%', 'g')
     let score = get(s, 'score', 0)
+    let opened = (idx == s:opened)
+    let mark = opened ? '▸' : ' '
+    let score_hl = opened ? '%#SuperTabPanelHnOpen#' : '%#SuperTabPanelHnScore#'
+    let title_hl = opened ? '%#SuperTabPanelHnOpen#' : '%#SuperTabPanelHn#'
     let result ..= '%' .. idx .. '[supertabpanel#widgets#hackernews#open]'
-          \ .. '%#SuperTabPanelHnScore#  ' .. score .. ' '
-          \ .. '%#SuperTabPanelHn#' .. title .. '%[]%@'
+          \ .. score_hl .. ' ' .. mark .. ' ' .. score .. ' '
+          \ .. title_hl .. title .. '%[]%@'
     let idx += 1
   endfor
   return result
@@ -131,6 +150,11 @@ function! supertabpanel#widgets#hackernews#deactivate() abort
     call timer_stop(s:timer)
     let s:timer = -1
   endif
+  if s:opened_timer != -1
+    call timer_stop(s:opened_timer)
+    let s:opened_timer = -1
+  endif
+  let s:opened = -1
 endfunction
 
 function! supertabpanel#widgets#hackernews#init() abort

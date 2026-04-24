@@ -10,6 +10,7 @@ function! s:setup_colors() abort
   hi default SuperTabPanelGtHead guifg=#7dcfff guibg=#1a1b26 gui=bold cterm=bold ctermfg=117 ctermbg=234
   hi default SuperTabPanelGt     guifg=#a9b1d6 guibg=#1a1b26 ctermfg=249 ctermbg=234
   hi default SuperTabPanelGtStar guifg=#e0af68 guibg=#1a1b26 ctermfg=179 ctermbg=234
+  hi default SuperTabPanelGtOpen guifg=#9ece6a guibg=#1a1b26 gui=bold cterm=bold ctermfg=149 ctermbg=234
 endfunction
 
 function! s:on_chunk(id, ch, msg) abort
@@ -54,6 +55,13 @@ function! s:refresh(id, timer) abort
         \ })
 endfunction
 
+function! s:clear_opened(id, timer) abort
+  let inst = s:instances[a:id]
+  let inst.opened = -1
+  let inst.opened_timer = -1
+  redrawtabpanel
+endfunction
+
 " minwid encodes id*1000 + idx.
 function! supertabpanel#widgets#github_trending#open(info) abort
   let code = a:info.minwid
@@ -70,6 +78,13 @@ function! supertabpanel#widgets#github_trending#open(info) abort
     elseif executable('open')
       call job_start(['open', url])
     endif
+    let inst.opened = idx
+    if inst.opened_timer != -1
+      call timer_stop(inst.opened_timer)
+    endif
+    let inst.opened_timer = timer_start(800,
+          \ function('s:clear_opened', [id]))
+    redrawtabpanel
   endif
   return 1
 endfunction
@@ -87,10 +102,14 @@ function! s:render(id) abort
   for r in inst.repos
     let name = supertabpanel#truncate(r.fullName, supertabpanel#content_width(13))
     let stars = r.stargazersCount
+    let opened = (idx == inst.opened)
+    let mark = opened ? '▸' : ' '
+    let star_hl = opened ? '%#SuperTabPanelGtOpen#' : '%#SuperTabPanelGtStar#'
+    let name_hl = opened ? '%#SuperTabPanelGtOpen#' : '%#SuperTabPanelGt#'
     let code = a:id * 1000 + idx
     let result ..= '%' .. code .. '[supertabpanel#widgets#github_trending#open]'
-          \ .. '%#SuperTabPanelGtStar#  ⭐ ' .. stars .. ' '
-          \ .. '%#SuperTabPanelGt#' .. name .. '%[]%@'
+          \ .. star_hl .. ' ' .. mark .. ' ⭐ ' .. stars .. ' '
+          \ .. name_hl .. name .. '%[]%@'
     let idx += 1
   endfor
   return result
@@ -115,6 +134,11 @@ function! s:deactivate(id) abort
     call job_stop(inst.job)
   endif
   let inst.job = v:null
+  if inst.opened_timer != -1
+    call timer_stop(inst.opened_timer)
+    let inst.opened_timer = -1
+  endif
+  let inst.opened = -1
 endfunction
 
 function! supertabpanel#widgets#github_trending#instance(params) abort
@@ -134,6 +158,8 @@ function! supertabpanel#widgets#github_trending#instance(params) abort
         \ buf: [],
         \ job: v:null,
         \ timer: -1,
+        \ opened: -1,
+        \ opened_timer: -1,
         \ })
   return #{
         \ icon: '🔥',
