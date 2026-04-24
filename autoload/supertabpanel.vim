@@ -8,6 +8,9 @@ let s:current_panel = 0
 let s:columns = s:DEFAULT_COLUMNS
 let s:anim_timer = -1
 let s:anim_phase = ''
+" Set when close/open animation should land on an explicit panel index;
+" -1 means "derive from s:anim_step" (the rotate() behaviour).
+let s:anim_target = -1
 let s:did_setup = 0
 let s:inst_counter = 0
 
@@ -66,7 +69,9 @@ function! s:resolve_panel(panel) abort
 endfunction
 
 " Activate a panel by name or index.  Opens the tabpanel if it's
-" currently hidden.  Returns 1 on success, 0 if the panel isn't found.
+" currently hidden.  Runs the same close/open animation as rotation so
+" the transition is consistent.  Returns 1 on success, 0 if the panel
+" isn't found.
 function! supertabpanel#activate(panel) abort
   let idx = s:resolve_panel(a:panel)
   if idx < 0
@@ -79,10 +84,18 @@ function! supertabpanel#activate(panel) abort
   if &showtabpanel == 0
     let s:current_panel = idx
     call s:activate_current()
-    let &tabpanelopt = 'columns:' .. s:columns .. ',vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:4,vert,scroll,scrollbar'
     set showtabpanel=2
+    let s:anim_phase = 'open'
+    let s:anim_timer = timer_start(20,
+          \ function('s:rotate_step'), #{ repeat: -1 })
+  elseif s:current_panel == idx
+    return 1
   else
-    call supertabpanel#switch_panel(idx)
+    let s:anim_target = idx
+    let s:anim_phase = 'close'
+    let s:anim_timer = timer_start(20,
+          \ function('s:rotate_step'), #{ repeat: -1 })
   endif
   return 1
 endfunction
@@ -361,8 +374,13 @@ function! s:rotate_step(timer) abort
     if cur <= 0
       let &tabpanelopt = 'columns:4,vert,scroll,scrollbar'
       call s:deactivate_current()
-      let n = len(s:panels)
-      let s:current_panel = ((s:current_panel + s:anim_step) % n + n) % n
+      if s:anim_target >= 0
+        let s:current_panel = s:anim_target
+        let s:anim_target = -1
+      else
+        let n = len(s:panels)
+        let s:current_panel = ((s:current_panel + s:anim_step) % n + n) % n
+      endif
       call s:activate_current()
       let s:anim_phase = 'open'
       if exists('*tabpanel_setscroll')
