@@ -1,11 +1,12 @@
 " vim-supertabpanel : buffer explainer widget (asks Claude)
 "
 " Requires ANTHROPIC_API_KEY.
+"
+" Instance params:
+"   model : Claude model id (default 'claude-sonnet-4-5')
 
-let s:job = v:null
-let s:buf = []
-let s:popup = -1
-let s:model = get(g:, 'supertabpanel_claude_model', 'claude-sonnet-4-5')
+let s:instances = []
+let s:colors_ready = 0
 
 function! s:setup_colors() abort
   hi default SuperTabPanelExHead guifg=#e0af68 guibg=#1a1b26 gui=bold cterm=bold ctermfg=179 ctermbg=234
@@ -13,7 +14,8 @@ function! s:setup_colors() abort
   hi default SuperTabPanelExBtn  guifg=#bb9af7 guibg=#1a1b26 ctermfg=141 ctermbg=234
 endfunction
 
-function! s:on_chunk(ch, msg) abort
+function! s:on_chunk(id, ch, msg) abort
+  let inst = s:instances[a:id]
   for l in split(a:msg, "\n")
     if l =~# '^data: '
       let json = l[6:]
@@ -21,9 +23,9 @@ function! s:on_chunk(ch, msg) abort
       try
         let d = json_decode(json)
         if has_key(d, 'delta') && has_key(d.delta, 'text')
-          call add(s:buf, d.delta.text)
-          if s:popup > 0 && popup_getpos(s:popup) != {}
-            call popup_settext(s:popup, split(join(s:buf, ''), "\n"))
+          call add(inst.buf, d.delta.text)
+          if inst.popup > 0 && popup_getpos(inst.popup) != {}
+            call popup_settext(inst.popup, split(join(inst.buf, ''), "\n"))
           endif
         endif
       catch
@@ -32,23 +34,24 @@ function! s:on_chunk(ch, msg) abort
   endfor
 endfunction
 
-function! s:on_done(job, status) abort
-  let s:job = v:null
+function! s:on_done(id, job, status) abort
+  let s:instances[a:id].job = v:null
 endfunction
 
-function! s:ask(prompt) abort
+function! s:ask(id, prompt) abort
   if $ANTHROPIC_API_KEY ==# ''
     echohl ErrorMsg | echom 'ANTHROPIC_API_KEY not set' | echohl None
     return
   endif
-  let s:buf = []
+  let inst = s:instances[a:id]
+  let inst.buf = []
   let body = json_encode(#{
-        \ model: s:model,
+        \ model: inst.model,
         \ max_tokens: 2048,
         \ stream: v:true,
         \ messages: [#{ role: 'user', content: a:prompt }],
         \ })
-  let s:popup = popup_create(['Asking Claude...'], #{
+  let inst.popup = popup_create(['Asking Claude...'], #{
         \ title: ' Explain ',
         \ border: [],
         \ borderchars: ['─','│','─','│','╭','╮','╯','╰'],
@@ -56,59 +59,76 @@ function! s:ask(prompt) abort
         \ padding: [0,1,0,1],
         \ scrollbar: 1, close: 'click',
         \ })
-  if s:job isnot v:null && job_status(s:job) ==# 'run'
-    call job_stop(s:job)
+  if inst.job isnot v:null && job_status(inst.job) ==# 'run'
+    call job_stop(inst.job)
   endif
-  let s:job = job_start(['curl', '-sN', 'https://api.anthropic.com/v1/messages',
+  let inst.job = job_start(['curl', '-sN', 'https://api.anthropic.com/v1/messages',
         \ '-H', 'x-api-key: ' .. $ANTHROPIC_API_KEY,
         \ '-H', 'anthropic-version: 2023-06-01',
         \ '-H', 'content-type: application/json',
         \ '-d', body], #{
-        \ out_cb: function('s:on_chunk'),
-        \ exit_cb: function('s:on_done'),
+        \ out_cb: function('s:on_chunk', [a:id]),
+        \ exit_cb: function('s:on_done', [a:id]),
         \ mode: 'nl',
         \ })
 endfunction
 
-function! supertabpanel#widgets#explain#buffer(info) abort
-  let text = join(getline(1, '$'), "\n")
-  call s:ask("Briefly explain what this code does:\n\n" .. text)
-  return 1
-endfunction
-
-function! supertabpanel#widgets#explain#selection(info) abort
-  let saved = @@
-  silent normal! gvy
-  let text = @@
-  let @@ = saved
-  if text ==# ''
+" minwid encodes id*10 + action (0=buffer, 1=selection)
+function! supertabpanel#widgets#explain#click(info) abort
+  let code = a:info.minwid
+  let id = code / 10
+  let action = code % 10
+  if id < 0 || id >= len(s:instances)
     return 0
   endif
-  call s:ask("Briefly explain this code:\n\n" .. text)
+  if action == 0
+    let text = join(getline(1, '$'), "\n")
+    call s:ask(id, "Briefly explain what this code does:\n\n" .. text)
+  elseif action == 1
+    let saved = @@
+    silent normal! gvy
+    let text = @@
+    let @@ = saved
+    if text ==# ''
+      return 0
+    endif
+    call s:ask(id, "Briefly explain this code:\n\n" .. text)
+  endif
   return 1
 endfunction
 
-function! supertabpanel#widgets#explain#render() abort
+function! s:render(id) abort
   let result = '%#SuperTabPanelExHead#  🔍 Explain%@'
   if $ANTHROPIC_API_KEY ==# ''
     return result .. '%#SuperTabPanelEx#  (set ANTHROPIC_API_KEY)%@'
   endif
-  let result ..= '%0[supertabpanel#widgets#explain#buffer]'
+  let result ..= '%' .. (a:id * 10 + 0) .. '[supertabpanel#widgets#explain#click]'
         \ .. '%#SuperTabPanelExBtn#  📄 whole buffer%[]%@'
-  let result ..= '%0[supertabpanel#widgets#explain#selection]'
+  let result ..= '%' .. (a:id * 10 + 1) .. '[supertabpanel#widgets#explain#click]'
         \ .. '%#SuperTabPanelExBtn#  ✂ selection%[]%@'
   return result
 endfunction
 
-function! supertabpanel#widgets#explain#init() abort
-  call s:setup_colors()
-  augroup supertabpanel_ex_colors
-    autocmd!
-    autocmd ColorScheme * call s:setup_colors()
-  augroup END
-  call supertabpanel#register('explain', #{
+function! supertabpanel#widgets#explain#instance(params) abort
+  if !s:colors_ready
+    call s:setup_colors()
+    augroup supertabpanel_ex_colors
+      autocmd!
+      autocmd ColorScheme * call s:setup_colors()
+    augroup END
+    let s:colors_ready = 1
+  endif
+  let id = len(s:instances)
+  call add(s:instances, #{
+        \ id: id,
+        \ model: get(a:params, 'model', 'claude-sonnet-4-5'),
+        \ buf: [],
+        \ job: v:null,
+        \ popup: -1,
+        \ })
+  return #{
         \ icon: '🔍',
         \ label: 'Explain',
-        \ render: function('supertabpanel#widgets#explain#render'),
-        \ })
+        \ render: function('s:render', [id]),
+        \ }
 endfunction

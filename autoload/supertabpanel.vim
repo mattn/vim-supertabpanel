@@ -9,9 +9,25 @@ let s:columns = s:DEFAULT_COLUMNS
 let s:anim_timer = -1
 let s:anim_phase = ''
 let s:did_setup = 0
+let s:inst_counter = 0
 
 function! supertabpanel#register(name, spec) abort
   let s:widgets[a:name] = a:spec
+endfunction
+
+function! s:try_instance(short, params) abort
+  try
+    let spec = call('supertabpanel#widgets#' .. a:short .. '#instance', [a:params])
+  catch
+    echohl ErrorMsg
+    echom 'supertabpanel: failed to instantiate "' .. a:short .. '": ' .. v:exception
+    echohl None
+    return ''
+  endtry
+  let s:inst_counter += 1
+  let synth = a:short .. '__' .. s:inst_counter
+  call supertabpanel#register(synth, spec)
+  return synth
 endfunction
 
 function! supertabpanel#widget(name) abort
@@ -167,14 +183,22 @@ function! supertabpanel#setup(...) abort
   let panels = get(opts, 'panels', [])
 
   " Normalize panels.  Each panel may be either:
-  "   - a list of widget names:         ['calendar', 'btcchart']
+  "   - a list of items:                ['calendar', 'btcchart']
   "   - a dict with name + items:       #{ name: 'Time', items: [...] }
-  " Widget names may be short ('calendar') or fully qualified
-  " ('supertabpanel#widgets#calendar', 'widgets#calendar').
+  " Each item may be either:
+  "   - a widget name string:           'calendar' / 'widgets#calendar'
+  "     Resolved in order:
+  "       1. `#instance({})` if defined  → instance with default params
+  "       2. `#init()`                  → legacy singleton
+  "   - a dict describing an instance:  #{ widget: 'rssfeed', params: {...} }
+  "     Calls `#instance(params)`.
+  " For instance widgets, the returned spec is registered under a
+  " synthesized unique name so the same widget can appear multiple times.
   let s:panels = []
   let auto_idx = 0
+  let singleton_names = []
   for p in panels
-    if type(p) == v:t_dict
+    if type(p) == v:t_dict && has_key(p, 'items')
       let name = get(p, 'name', '')
       let raw_items = get(p, 'items', [])
     else
@@ -183,8 +207,32 @@ function! supertabpanel#setup(...) abort
     endif
     let widgets = []
     for n in raw_items
-      let short = substitute(n, '^\%(supertabpanel#\)\?\%(widgets#\)\?', '', '')
-      call add(widgets, short)
+      if type(n) == v:t_dict
+        let short = substitute(get(n, 'widget', ''),
+              \ '^\%(supertabpanel#\)\?\%(widgets#\)\?', '', '')
+        if short ==# ''
+          continue
+        endif
+        let params = get(n, 'params', {})
+        let synth = s:try_instance(short, params)
+        if synth !=# ''
+          call add(widgets, synth)
+        endif
+      else
+        let short = substitute(n, '^\%(supertabpanel#\)\?\%(widgets#\)\?', '', '')
+        " Load the autoload so exists('*...#instance') can resolve.
+        execute 'runtime autoload/supertabpanel/widgets/' .. short .. '.vim'
+        " Prefer #instance({}) — falls back to #init() below if missing.
+        if exists('*supertabpanel#widgets#' .. short .. '#instance')
+          let synth = s:try_instance(short, {})
+          if synth !=# ''
+            call add(widgets, synth)
+          endif
+        else
+          call add(widgets, short)
+          call add(singleton_names, short)
+        endif
+      endif
     endfor
     if name ==# ''
       let name = 'Panel ' .. (auto_idx + 1)
@@ -193,22 +241,20 @@ function! supertabpanel#setup(...) abort
     let auto_idx += 1
   endfor
 
-  " Load widgets (triggers autoload -> register).
+  " Load singleton widgets (triggers autoload -> register).
   let seen = {}
-  for p in s:panels
-    for name in p.items
-      if has_key(seen, name)
-        continue
-      endif
-      let seen[name] = 1
-      try
-        call call('supertabpanel#widgets#' .. name .. '#init', [])
-      catch
-        echohl ErrorMsg
-        echom 'supertabpanel: failed to load "' .. name .. '": ' .. v:exception
-        echohl None
-      endtry
-    endfor
+  for name in singleton_names
+    if has_key(seen, name)
+      continue
+    endif
+    let seen[name] = 1
+    try
+      call call('supertabpanel#widgets#' .. name .. '#init', [])
+    catch
+      echohl ErrorMsg
+      echom 'supertabpanel: failed to load "' .. name .. '": ' .. v:exception
+      echohl None
+    endtry
   endfor
 
   let s:current_panel = get(opts, 'default', 0)

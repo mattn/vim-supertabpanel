@@ -1,11 +1,11 @@
 " vim-supertabpanel : sunrise / sunset widget (uses api.sunrise-sunset.org)
+"
+" Instance params:
+"   lat : latitude  (default 35.6895 — Tokyo)
+"   lng : longitude (default 139.6917)
 
-let s:timer = -1
-let s:job = v:null
-let s:buf = []
-let s:data = {}
-let s:lat = get(g:, 'supertabpanel_sunmoon_lat', 35.6895)   " Tokyo
-let s:lng = get(g:, 'supertabpanel_sunmoon_lng', 139.6917)
+let s:instances = []
+let s:colors_ready = 0
 
 function! s:setup_colors() abort
   hi default SuperTabPanelSmHead guifg=#7dcfff guibg=#1a1b26 gui=bold cterm=bold ctermfg=117 ctermbg=234
@@ -13,35 +13,37 @@ function! s:setup_colors() abort
   hi default SuperTabPanelSmSun  guifg=#e0af68 guibg=#1a1b26 ctermfg=179 ctermbg=234
 endfunction
 
-function! s:on_chunk(ch, msg) abort
-  call add(s:buf, a:msg)
+function! s:on_chunk(id, ch, msg) abort
+  call add(s:instances[a:id].buf, a:msg)
 endfunction
 
-function! s:on_done(job, status) abort
-  let s:job = v:null
-  if a:status != 0 || empty(s:buf)
+function! s:on_done(id, job, status) abort
+  let inst = s:instances[a:id]
+  let inst.job = v:null
+  if a:status != 0 || empty(inst.buf)
     return
   endif
   try
-    let d = json_decode(join(s:buf, ''))
+    let d = json_decode(join(inst.buf, ''))
     if get(d, 'status', '') ==# 'OK'
-      let s:data = d.results
+      let inst.data = d.results
       redrawtabpanel
     endif
   catch
   endtry
 endfunction
 
-function! supertabpanel#widgets#sunmoon#refresh(timer) abort
-  if s:job isnot v:null && job_status(s:job) ==# 'run'
+function! s:refresh(id, timer) abort
+  let inst = s:instances[a:id]
+  if inst.job isnot v:null && job_status(inst.job) ==# 'run'
     return
   endif
-  let s:buf = []
+  let inst.buf = []
   let url = printf('https://api.sunrise-sunset.org/json?lat=%.4f&lng=%.4f&formatted=0',
-        \ s:lat, s:lng)
-  let s:job = job_start(['curl', '-sL', url], #{
-        \ out_cb: function('s:on_chunk'),
-        \ exit_cb: function('s:on_done'),
+        \ inst.lat, inst.lng)
+  let inst.job = job_start(['curl', '-sL', url], #{
+        \ out_cb: function('s:on_chunk', [a:id]),
+        \ exit_cb: function('s:on_done', [a:id]),
         \ mode: 'raw',
         \ })
 endfunction
@@ -67,8 +69,6 @@ function! s:utc_epoch(Y, M, D, h, m, s) abort
 endfunction
 
 function! s:to_local(utc) abort
-  " Input: "2026-04-23T20:42:00+00:00" (UTC). Parse the components ourselves
-  " so we don't depend on strptime (missing on native Windows Vim).
   let m = matchlist(a:utc,
         \ '^\(\d\{4\}\)-\(\d\{2\}\)-\(\d\{2\}\)T\(\d\{2\}\):\(\d\{2\}\):\(\d\{2\}\)')
   if empty(m)
@@ -79,45 +79,61 @@ function! s:to_local(utc) abort
   return strftime('%H:%M', epoch)
 endfunction
 
-function! supertabpanel#widgets#sunmoon#render() abort
+function! s:render(id) abort
+  let inst = s:instances[a:id]
   let result = '%#SuperTabPanelSmHead#  ☀ Sunrise / Sunset%@'
-  if empty(s:data)
+  if empty(inst.data)
     return result .. '%#SuperTabPanelSm#  fetching...%@'
   endif
-  let rise = s:to_local(s:data.sunrise)
-  let set  = s:to_local(s:data.sunset)
-  let noon = s:to_local(s:data.solar_noon)
+  let rise = s:to_local(inst.data.sunrise)
+  let set  = s:to_local(inst.data.sunset)
+  let noon = s:to_local(inst.data.solar_noon)
   let result ..= '%#SuperTabPanelSmSun#  ☀ ' .. rise .. '  ☼ ' .. noon .. '  ☾ ' .. set .. '%@'
-  let result ..= '%#SuperTabPanelSm#  daylen: ' .. s:data.day_length .. 's%@'
+  let result ..= '%#SuperTabPanelSm#  daylen: ' .. inst.data.day_length .. 's%@'
   return result
 endfunction
 
-function! supertabpanel#widgets#sunmoon#activate() abort
-  if s:timer == -1
-    call supertabpanel#widgets#sunmoon#refresh(0)
-    let s:timer = timer_start(3600000,
-          \ function('supertabpanel#widgets#sunmoon#refresh'), #{ repeat: -1 })
+function! s:activate(id) abort
+  let inst = s:instances[a:id]
+  if inst.timer == -1
+    call s:refresh(a:id, 0)
+    let inst.timer = timer_start(3600000,
+          \ function('s:refresh', [a:id]), #{ repeat: -1 })
   endif
 endfunction
 
-function! supertabpanel#widgets#sunmoon#deactivate() abort
-  if s:timer != -1
-    call timer_stop(s:timer)
-    let s:timer = -1
+function! s:deactivate(id) abort
+  let inst = s:instances[a:id]
+  if inst.timer != -1
+    call timer_stop(inst.timer)
+    let inst.timer = -1
   endif
 endfunction
 
-function! supertabpanel#widgets#sunmoon#init() abort
-  call s:setup_colors()
-  augroup supertabpanel_sm_colors
-    autocmd!
-    autocmd ColorScheme * call s:setup_colors()
-  augroup END
-  call supertabpanel#register('sunmoon', #{
+function! supertabpanel#widgets#sunmoon#instance(params) abort
+  if !s:colors_ready
+    call s:setup_colors()
+    augroup supertabpanel_sm_colors
+      autocmd!
+      autocmd ColorScheme * call s:setup_colors()
+    augroup END
+    let s:colors_ready = 1
+  endif
+  let id = len(s:instances)
+  call add(s:instances, #{
+        \ id: id,
+        \ lat: get(a:params, 'lat', 35.6895),
+        \ lng: get(a:params, 'lng', 139.6917),
+        \ data: {},
+        \ buf: [],
+        \ job: v:null,
+        \ timer: -1,
+        \ })
+  return #{
         \ icon: '☀',
         \ label: 'Sun',
-        \ render: function('supertabpanel#widgets#sunmoon#render'),
-        \ on_activate: function('supertabpanel#widgets#sunmoon#activate'),
-        \ on_deactivate: function('supertabpanel#widgets#sunmoon#deactivate'),
-        \ })
+        \ render: function('s:render', [id]),
+        \ on_activate: function('s:activate', [id]),
+        \ on_deactivate: function('s:deactivate', [id]),
+        \ }
 endfunction

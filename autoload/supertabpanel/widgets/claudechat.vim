@@ -1,12 +1,14 @@
 " vim-supertabpanel : Claude chat widget
 "
 " Requires ANTHROPIC_API_KEY in environment.
-" Click "new chat" to open a popup prompt; response streams back.
+"
+" Instance params:
+"   model : Claude model id (default 'claude-sonnet-4-5')
 
-let s:job = v:null
-let s:popup = -1
-let s:response = []
-let s:model = get(g:, 'supertabpanel_claude_model', 'claude-sonnet-4-5')
+let s:instances = []
+let s:colors_ready = 0
+let s:prompt_text = ''
+let s:prompt_owner = -1
 
 function! s:setup_colors() abort
   hi default SuperTabPanelClHead guifg=#e0af68 guibg=#1a1b26 gui=bold cterm=bold ctermfg=179 ctermbg=234
@@ -30,18 +32,25 @@ function! s:ask_prompt_filter(id, key) abort
   return 1
 endfunction
 
-let s:prompt_text = ''
 function! s:ask_done(id, result) abort
   if type(a:result) != v:t_string || a:result ==# ''
+        \ || s:prompt_owner < 0 || s:prompt_owner >= len(s:instances)
     let s:prompt_text = ''
+    let s:prompt_owner = -1
     return
   endif
-  call s:send(a:result)
+  call s:send(s:prompt_owner, a:result)
   let s:prompt_text = ''
+  let s:prompt_owner = -1
 endfunction
 
 function! supertabpanel#widgets#claudechat#ask(info) abort
+  let id = a:info.minwid
+  if id < 0 || id >= len(s:instances)
+    return 0
+  endif
   let s:prompt_text = ''
+  let s:prompt_owner = id
   call popup_create('', #{
         \ title: ' Ask Claude ',
         \ border: [], padding: [0, 1, 0, 1],
@@ -52,8 +61,8 @@ function! supertabpanel#widgets#claudechat#ask(info) abort
   return 1
 endfunction
 
-function! s:on_chunk(ch, msg) abort
-  " Server-Sent Events; collect 'data:' text blocks.
+function! s:on_chunk(id, ch, msg) abort
+  let inst = s:instances[a:id]
   for l in split(a:msg, "\n")
     if l =~# '^data: '
       let json = l[6:]
@@ -61,9 +70,9 @@ function! s:on_chunk(ch, msg) abort
       try
         let d = json_decode(json)
         if has_key(d, 'delta') && has_key(d.delta, 'text')
-          call add(s:response, d.delta.text)
-          if s:popup > 0 && popup_getpos(s:popup) != {}
-            call popup_settext(s:popup, split(join(s:response, ''), "\n"))
+          call add(inst.response, d.delta.text)
+          if inst.popup > 0 && popup_getpos(inst.popup) != {}
+            call popup_settext(inst.popup, split(join(inst.response, ''), "\n"))
           endif
         endif
       catch
@@ -72,23 +81,24 @@ function! s:on_chunk(ch, msg) abort
   endfor
 endfunction
 
-function! s:on_done(job, status) abort
-  let s:job = v:null
+function! s:on_done(id, job, status) abort
+  let s:instances[a:id].job = v:null
 endfunction
 
-function! s:send(prompt) abort
+function! s:send(id, prompt) abort
   if $ANTHROPIC_API_KEY ==# ''
     echohl ErrorMsg | echom 'ANTHROPIC_API_KEY not set' | echohl None
     return
   endif
-  let s:response = []
+  let inst = s:instances[a:id]
+  let inst.response = []
   let body = json_encode(#{
-        \ model: s:model,
+        \ model: inst.model,
         \ max_tokens: 1024,
         \ stream: v:true,
         \ messages: [#{ role: 'user', content: a:prompt }],
         \ })
-  let s:popup = popup_create([a:prompt, '', '...'], #{
+  let inst.popup = popup_create([a:prompt, '', '...'], #{
         \ title: ' Claude ',
         \ border: [],
         \ borderchars: ['─','│','─','│','╭','╮','╯','╰'],
@@ -99,50 +109,62 @@ function! s:send(prompt) abort
         \ close: 'click',
         \ borderhighlight: ['SuperTabPanelSep'],
         \ })
-  if s:job isnot v:null && job_status(s:job) ==# 'run'
-    call job_stop(s:job)
+  if inst.job isnot v:null && job_status(inst.job) ==# 'run'
+    call job_stop(inst.job)
   endif
-  let s:job = job_start(['curl', '-sN', 'https://api.anthropic.com/v1/messages',
+  let inst.job = job_start(['curl', '-sN', 'https://api.anthropic.com/v1/messages',
         \ '-H', 'x-api-key: ' .. $ANTHROPIC_API_KEY,
         \ '-H', 'anthropic-version: 2023-06-01',
         \ '-H', 'content-type: application/json',
         \ '-d', body], #{
-        \ out_cb: function('s:on_chunk'),
-        \ exit_cb: function('s:on_done'),
+        \ out_cb: function('s:on_chunk', [a:id]),
+        \ exit_cb: function('s:on_done', [a:id]),
         \ mode: 'nl',
         \ })
 endfunction
 
-function! supertabpanel#widgets#claudechat#render() abort
+function! s:render(id) abort
+  let inst = s:instances[a:id]
   let result = '%#SuperTabPanelClHead#  ✨ Claude%@'
-  let key_ok = $ANTHROPIC_API_KEY !=# ''
-  if !key_ok
+  if $ANTHROPIC_API_KEY ==# ''
     let result ..= '%#SuperTabPanelCl#  (set ANTHROPIC_API_KEY)%@'
     return result
   endif
-  let result ..= '%#SuperTabPanelCl#  model: ' .. s:model .. '%@'
-  let result ..= '%0[supertabpanel#widgets#claudechat#ask]'
+  let result ..= '%#SuperTabPanelCl#  model: ' .. inst.model .. '%@'
+  let result ..= '%' .. a:id .. '[supertabpanel#widgets#claudechat#ask]'
         \ .. '%#SuperTabPanelClBtn#   💬 new chat%[]%@'
   return result
 endfunction
 
-function! supertabpanel#widgets#claudechat#deactivate() abort
-  if s:job isnot v:null && job_status(s:job) ==# 'run'
-    call job_stop(s:job)
+function! s:deactivate(id) abort
+  let inst = s:instances[a:id]
+  if inst.job isnot v:null && job_status(inst.job) ==# 'run'
+    call job_stop(inst.job)
   endif
-  let s:job = v:null
+  let inst.job = v:null
 endfunction
 
-function! supertabpanel#widgets#claudechat#init() abort
-  call s:setup_colors()
-  augroup supertabpanel_cl_colors
-    autocmd!
-    autocmd ColorScheme * call s:setup_colors()
-  augroup END
-  call supertabpanel#register('claudechat', #{
+function! supertabpanel#widgets#claudechat#instance(params) abort
+  if !s:colors_ready
+    call s:setup_colors()
+    augroup supertabpanel_cl_colors
+      autocmd!
+      autocmd ColorScheme * call s:setup_colors()
+    augroup END
+    let s:colors_ready = 1
+  endif
+  let id = len(s:instances)
+  call add(s:instances, #{
+        \ id: id,
+        \ model: get(a:params, 'model', 'claude-sonnet-4-5'),
+        \ response: [],
+        \ job: v:null,
+        \ popup: -1,
+        \ })
+  return #{
         \ icon: '✨',
         \ label: 'Claude',
-        \ render: function('supertabpanel#widgets#claudechat#render'),
-        \ on_deactivate: function('supertabpanel#widgets#claudechat#deactivate'),
-        \ })
+        \ render: function('s:render', [id]),
+        \ on_deactivate: function('s:deactivate', [id]),
+        \ }
 endfunction

@@ -1,10 +1,14 @@
 " vim-supertabpanel : stock ticker widget (Yahoo Finance quote API)
+"
+" Instance params:
+"   symbols : list of Yahoo ticker symbols (default Nikkei/S&P/NASDAQ/USDJPY)
 
-let s:timer = -1
-let s:symbols = get(g:, 'supertabpanel_stocks',
-      \ ['^N225', '^GSPC', '^IXIC', 'USDJPY=X'])
-let s:quotes = {}
-let s:pending = {}
+let s:instances = []
+let s:colors_ready = 0
+
+function! s:default_symbols() abort
+  return ['^N225', '^GSPC', '^IXIC', 'USDJPY=X']
+endfunction
 
 function! s:setup_colors() abort
   hi default SuperTabPanelStkHead guifg=#7dcfff guibg=#1a1b26 gui=bold cterm=bold ctermfg=117 ctermbg=234
@@ -14,47 +18,51 @@ function! s:setup_colors() abort
   hi default SuperTabPanelStkDown guifg=#f7768e guibg=#1a1b26 ctermfg=204 ctermbg=234
 endfunction
 
-function! s:on_chunk(sym, ch, msg) abort
-  if !has_key(s:pending, a:sym)
-    let s:pending[a:sym] = []
+function! s:on_chunk(id, sym, ch, msg) abort
+  let inst = s:instances[a:id]
+  if !has_key(inst.pending, a:sym)
+    let inst.pending[a:sym] = []
   endif
-  call add(s:pending[a:sym], a:msg)
+  call add(inst.pending[a:sym], a:msg)
 endfunction
 
-function! s:on_done(sym, job, status) abort
-  if a:status != 0 || !has_key(s:pending, a:sym)
+function! s:on_done(id, sym, job, status) abort
+  let inst = s:instances[a:id]
+  if a:status != 0 || !has_key(inst.pending, a:sym)
     return
   endif
   try
-    let d = json_decode(join(s:pending[a:sym], ''))
+    let d = json_decode(join(inst.pending[a:sym], ''))
     let r = d.chart.result[0]
     let cur = r.meta.regularMarketPrice
     let prev = r.meta.chartPreviousClose
-    let s:quotes[a:sym] = #{ cur: cur, prev: prev }
+    let inst.quotes[a:sym] = #{ cur: cur, prev: prev }
   catch
   endtry
-  unlet s:pending[a:sym]
+  unlet inst.pending[a:sym]
   redrawtabpanel
 endfunction
 
-function! supertabpanel#widgets#stockticker#refresh(timer) abort
-  for sym in s:symbols
+function! s:refresh(id, timer) abort
+  let inst = s:instances[a:id]
+  for sym in inst.symbols
     let url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
           \ .. sym .. '?interval=1d&range=5d'
     call job_start(['curl', '-sL',
           \ '-H', 'User-Agent: Mozilla/5.0',
           \ url], #{
-          \ out_cb: function('s:on_chunk', [sym]),
-          \ exit_cb: function('s:on_done', [sym]),
+          \ out_cb: function('s:on_chunk', [a:id, sym]),
+          \ exit_cb: function('s:on_done', [a:id, sym]),
           \ mode: 'raw',
           \ })
   endfor
 endfunction
 
-function! supertabpanel#widgets#stockticker#render() abort
+function! s:render(id) abort
+  let inst = s:instances[a:id]
   let result = '%#SuperTabPanelStkHead#  📈 Markets%@'
-  for sym in s:symbols
-    let q = get(s:quotes, sym, {})
+  for sym in inst.symbols
+    let q = get(inst.quotes, sym, {})
     if empty(q)
       let result ..= '%#SuperTabPanelStk#  ' .. sym .. '  ...%@'
       continue
@@ -73,32 +81,45 @@ function! supertabpanel#widgets#stockticker#render() abort
   return result
 endfunction
 
-function! supertabpanel#widgets#stockticker#activate() abort
-  if s:timer == -1
-    call supertabpanel#widgets#stockticker#refresh(0)
-    let s:timer = timer_start(120000,
-          \ function('supertabpanel#widgets#stockticker#refresh'), #{ repeat: -1 })
+function! s:activate(id) abort
+  let inst = s:instances[a:id]
+  if inst.timer == -1
+    call s:refresh(a:id, 0)
+    let inst.timer = timer_start(120000,
+          \ function('s:refresh', [a:id]), #{ repeat: -1 })
   endif
 endfunction
 
-function! supertabpanel#widgets#stockticker#deactivate() abort
-  if s:timer != -1
-    call timer_stop(s:timer)
-    let s:timer = -1
+function! s:deactivate(id) abort
+  let inst = s:instances[a:id]
+  if inst.timer != -1
+    call timer_stop(inst.timer)
+    let inst.timer = -1
   endif
 endfunction
 
-function! supertabpanel#widgets#stockticker#init() abort
-  call s:setup_colors()
-  augroup supertabpanel_stk_colors
-    autocmd!
-    autocmd ColorScheme * call s:setup_colors()
-  augroup END
-  call supertabpanel#register('stockticker', #{
+function! supertabpanel#widgets#stockticker#instance(params) abort
+  if !s:colors_ready
+    call s:setup_colors()
+    augroup supertabpanel_stk_colors
+      autocmd!
+      autocmd ColorScheme * call s:setup_colors()
+    augroup END
+    let s:colors_ready = 1
+  endif
+  let id = len(s:instances)
+  call add(s:instances, #{
+        \ id: id,
+        \ symbols: get(a:params, 'symbols', s:default_symbols()),
+        \ quotes: {},
+        \ pending: {},
+        \ timer: -1,
+        \ })
+  return #{
         \ icon: '📈',
         \ label: 'Markets',
-        \ render: function('supertabpanel#widgets#stockticker#render'),
-        \ on_activate: function('supertabpanel#widgets#stockticker#activate'),
-        \ on_deactivate: function('supertabpanel#widgets#stockticker#deactivate'),
-        \ })
+        \ render: function('s:render', [id]),
+        \ on_activate: function('s:activate', [id]),
+        \ on_deactivate: function('s:deactivate', [id]),
+        \ }
 endfunction

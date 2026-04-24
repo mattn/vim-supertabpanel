@@ -54,7 +54,10 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \ #{ name: 'Feed',      items: [
       \   'supertabpanel#widgets#btcchart',
       \   'supertabpanel#widgets#stockticker',
-      \   'supertabpanel#widgets#asahinews',
+      \   #{ widget: 'rssfeed', params: #{
+      \     name: '朝日新聞',
+      \     url: 'https://www.asahi.com/rss/asahi/newsheadlines.rdf',
+      \   }},
       \ ]},
       \ #{ name: 'Tech',      items: [
       \   'supertabpanel#widgets#hackernews',
@@ -114,7 +117,9 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \ #{ name: 'Media',     items: [
       \   'supertabpanel#widgets#piano',
       \   'supertabpanel#widgets#radio',
-      \   'supertabpanel#widgets#podcast',
+      \   #{ widget: 'podcast', params: #{
+      \     url: 'https://feeds.megaphone.fm/TFM9640066968',
+      \   }},
       \ ]},
       \ #{ name: 'Files',     items: [
       \   'supertabpanel#widgets#filetree',
