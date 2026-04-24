@@ -107,8 +107,10 @@ function! s:render(id) abort
     let star_hl = opened ? '%#SuperTabPanelGtOpen#' : '%#SuperTabPanelGtStar#'
     let name_hl = opened ? '%#SuperTabPanelGtOpen#' : '%#SuperTabPanelGt#'
     let code = a:id * 1000 + idx
+    " mark sits in place of the first leading space so the width matches
+    " the non-clicked row and margin 13 stays valid.
     let result ..= '%' .. code .. '[supertabpanel#widgets#github_trending#open]'
-          \ .. star_hl .. ' ' .. mark .. ' ⭐ ' .. stars .. ' '
+          \ .. star_hl .. mark .. ' ⭐ ' .. stars .. ' '
           \ .. name_hl .. name .. '%[]%@'
     let idx += 1
   endfor

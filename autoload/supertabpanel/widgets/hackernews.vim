@@ -129,8 +129,10 @@ function! supertabpanel#widgets#hackernews#render() abort
     let mark = opened ? '▸' : ' '
     let score_hl = opened ? '%#SuperTabPanelHnOpen#' : '%#SuperTabPanelHnScore#'
     let title_hl = opened ? '%#SuperTabPanelHnOpen#' : '%#SuperTabPanelHn#'
+    " mark occupies the first of the two leading spaces so the width
+    " matches the non-clicked row — no extra cell, keeps margin 9 valid.
     let result ..= '%' .. idx .. '[supertabpanel#widgets#hackernews#open]'
-          \ .. score_hl .. ' ' .. mark .. ' ' .. score .. ' '
+          \ .. score_hl .. mark .. ' ' .. score .. ' '
           \ .. title_hl .. title .. '%[]%@'
     let idx += 1
   endfor
