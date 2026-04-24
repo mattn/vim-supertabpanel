@@ -4,6 +4,8 @@ A tabpanel-based dashboard for Vim with clickable widgets for git, feeds,
 system monitoring, a file tree, games, and more. Widgets are grouped
 into rotatable panels that you switch between with a single key.
 
+https://github.com/user-attachments/assets/6dadef02-efd8-4815-977e-1b78db27e70b
+
 ## Requirements
 
 - Vim 9.2.386 or later (`scroll`/`scrollbar` support in `'tabpanelopt'`)
