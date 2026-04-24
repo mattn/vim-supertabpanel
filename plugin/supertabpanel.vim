@@ -102,13 +102,13 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \ #{ name: 'Work',      items: [
       \   'supertabpanel#widgets#todo',
       \   'supertabpanel#widgets#pomodoro',
-      \   'supertabpanel#widgets#sysmon',
       \ ]},
       \ #{ name: 'Ops',       items: [
       \   'supertabpanel#widgets#build',
       \   'supertabpanel#widgets#tests',
       \   'supertabpanel#widgets#docker',
       \   'supertabpanel#widgets#k8s_pods',
+      \   'supertabpanel#widgets#sysmon',
       \ ]},
       \ #{ name: 'AI',        items: [
       \   'supertabpanel#widgets#claudechat',

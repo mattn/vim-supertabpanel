@@ -64,8 +64,8 @@ The default layout groups widgets into these panels:
 - **Git** — git status, diff hunks, stash, pull requests, GitHub notifications
 - **Nav** — buffers, recent files, marks, jumplist, tags
 - **Edit** — quickfix, diagnostics, registers, macros, undo, clipboard, terminals, quicklaunch
-- **Work** — todo, pomodoro, system monitor (CPU/MEM/BAT)
-- **Ops** — build, tests, docker, Kubernetes pods
+- **Work** — todo, pomodoro
+- **Ops** — build, tests, docker, Kubernetes pods, system monitor (CPU/MEM/BAT)
 - **AI** — Claude chat, explain, commit message, translate
 - **Game** — tetris, snake, 2048, game of life
 - **Media** — piano, web radio, podcast
