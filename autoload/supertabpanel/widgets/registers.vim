@@ -1,5 +1,7 @@
 " vim-supertabpanel : registers widget
 
+let s:preview_cache = {}
+
 function! s:setup_colors() abort
   hi default SuperTabPanelRegHead guifg=#7dcfff guibg=#1a1b26 gui=bold cterm=bold ctermfg=117 ctermbg=234
   hi default SuperTabPanelRegName guifg=#bb9af7 guibg=#1a1b26 ctermfg=141 ctermbg=234
@@ -19,6 +21,23 @@ function! supertabpanel#widgets#registers#paste(info) abort
   return 1
 endfunction
 
+" keytrans() sanitizes embedded keycodes to plain text like <Esc>, which
+" both reads better and keeps control bytes out of the tabpanel format
+" string (otherwise redraws during rotation animation are expensive).
+function! s:preview_of(val) abort
+  let cached = get(s:preview_cache, a:val, v:null)
+  if cached isnot v:null
+    return cached
+  endif
+  let p = keytrans(a:val)
+  let p = substitute(p, '\n', ' ', 'g')
+  let p = substitute(p, '\t', ' ', 'g')
+  let p = supertabpanel#truncate(p, supertabpanel#content_width(5))
+  let p = substitute(p, '%', '%%', 'g')
+  let s:preview_cache[a:val] = p
+  return p
+endfunction
+
 function! supertabpanel#widgets#registers#render() abort
   let result = '%#SuperTabPanelRegHead#  📋 Registers%@'
   let idx = 0
@@ -28,15 +47,9 @@ function! supertabpanel#widgets#registers#render() abort
       let idx += 1
       continue
     endif
-    let val = substitute(val, '\n', ' ', 'g')
-    let val = substitute(val, '\t', ' ', 'g')
-    let val = substitute(val, '%', '%%', 'g')
-    if strdisplaywidth(val) > 22
-      let val = strcharpart(val, 0, 20) .. '..'
-    endif
     let result ..= '%' .. idx .. '[supertabpanel#widgets#registers#paste]'
           \ .. '%#SuperTabPanelRegName#  "' .. r .. ' '
-          \ .. '%#SuperTabPanelReg#' .. val .. '%[]%@'
+          \ .. '%#SuperTabPanelReg#' .. s:preview_of(val) .. '%[]%@'
     let idx += 1
   endfor
   return result
