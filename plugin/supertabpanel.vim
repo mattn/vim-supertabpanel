@@ -66,6 +66,12 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \     url: 'https://mainichi.jp/rss/etc/mainichi-flash.rss',
       \     max: 5,
       \   }},
+      \   #{ widget: 'rssfeed', params: #{
+      \     name: 'はてブ',
+      \     url: 'https://b.hatena.ne.jp/hotentry.rss',
+      \     icon: '🔖',
+      \     max: 5,
+      \   }},
       \ ]},
       \ #{ name: 'Tech',      items: [
       \   'supertabpanel#widgets#hackernews',

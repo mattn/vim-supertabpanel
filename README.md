@@ -59,7 +59,7 @@ open the URL in your browser, a station name to start streaming, etc.
 The default layout groups widgets into these panels:
 
 - **Time** — clock, calendar, weather, sunrise/sunset, moon phase, world clock
-- **Feed** — BTC chart, stock ticker, RSS feed (Asahi news by default)
+- **Feed** — BTC chart, stock ticker, RSS feeds (Asahi / Mainichi / Hatena Bookmark by default)
 - **Tech** — Hacker News, GitHub trending
 - **Git** — git status, diff hunks, stash, pull requests, GitHub notifications
 - **Nav** — buffers, recent files, marks, jumplist, tags
