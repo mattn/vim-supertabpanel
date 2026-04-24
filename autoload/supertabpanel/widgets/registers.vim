@@ -38,7 +38,9 @@ function! s:preview_of(val) abort
     let cached = p
     let s:preview_cache[a:val] = cached
   endif
-  let p = supertabpanel#truncate(cached, supertabpanel#content_width(5))
+  " margin 6: '  "r ' prefix is 5 cells, plus one extra so CJK-filled
+  " previews don't butt right up against the panel edge and get clipped.
+  let p = supertabpanel#truncate(cached, supertabpanel#content_width(6))
   return substitute(p, '%', '%%', 'g')
 endfunction
 
