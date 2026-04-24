@@ -64,7 +64,7 @@ The default layout groups widgets into these panels:
 - **Git** — git status, diff hunks, stash, pull requests, GitHub notifications
 - **Nav** — buffers, recent files, marks, jumplist, tags
 - **Edit** — quickfix, diagnostics, registers, macros, undo, clipboard, terminals, quicklaunch
-- **Work** — todo, pomodoro
+- **Work** — todo, pomodoro, 今日は何の日 (Japanese Wikipedia "on this day")
 - **Ops** — system monitor (CPU/MEM/BAT), build, tests, docker, Kubernetes pods
 - **AI** — Claude chat, explain, commit message, translate
 - **Game** — tetris, snake, 2048, game of life
@@ -158,6 +158,7 @@ let g:supertabpanel_panels = [
 | widget            | params                                                       |
 | ----------------- | ------------------------------------------------------------ |
 | `rssfeed`         | `url` (required), `name`, `icon`, `max`, `content_selector` (CSS-ish: `tag` / `#id` / `.class`) |
+| `nanohi`          | `section` (`holidays` / `events` / `births` / `deaths`), `name`, `icon`, `max` |
 | `podcast`         | `url` (required), `name`, `icon`                             |
 | `radio`           | `stations` (list of `#{ name, url }`)                        |
 | `stockticker`     | `symbols` (list of Yahoo tickers)                            |

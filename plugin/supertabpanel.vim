@@ -102,6 +102,7 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \ #{ name: 'Work',      items: [
       \   'supertabpanel#widgets#todo',
       \   'supertabpanel#widgets#pomodoro',
+      \   #{ widget: 'nanohi', params: #{ max: 6 }},
       \ ]},
       \ #{ name: 'Ops',       items: [
       \   'supertabpanel#widgets#sysmon',
