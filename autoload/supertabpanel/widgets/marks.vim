@@ -27,6 +27,7 @@ endfunction
 function! supertabpanel#widgets#marks#jump(info) abort
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:marks)
+    call supertabpanel#flash('marks', idx)
     execute 'normal! `' .. s:marks[idx].name
   endif
   return 1
@@ -39,9 +40,11 @@ function! supertabpanel#widgets#marks#render() abort
   for m in s:marks
     let name = supertabpanel#truncate(m.file, supertabpanel#content_width(10))
     let name = substitute(name, '%', '%%', 'g')
+    let name_hl = supertabpanel#flash_hl('marks', idx, '%#SuperTabPanelMarkName#')
+    let loc_hl = supertabpanel#flash_hl('marks', idx, '%#SuperTabPanelMarkLoc#')
     let result ..= '%' .. idx .. '[supertabpanel#widgets#marks#jump]'
-          \ .. '%#SuperTabPanelMarkName#  ' .. m.name .. ' '
-          \ .. '%#SuperTabPanelMarkLoc#' .. name
+          \ .. name_hl .. '  ' .. m.name .. ' '
+          \ .. loc_hl .. name
           \ .. ':' .. m.lnum .. '%[]%@'
     let idx += 1
   endfor

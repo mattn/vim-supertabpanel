@@ -3,7 +3,6 @@
 function! s:setup_colors() abort
   hi default SuperTabPanelJlHead guifg=#7dcfff guibg=#1a1b26 gui=bold cterm=bold ctermfg=117 ctermbg=234
   hi default SuperTabPanelJl     guifg=#a9b1d6 guibg=#1a1b26 ctermfg=249 ctermbg=234
-  hi default SuperTabPanelJlCur  guifg=#f7768e guibg=#1a1b26 gui=bold cterm=bold ctermfg=204 ctermbg=234
 endfunction
 
 let s:snapshot = []
@@ -20,6 +19,7 @@ function! supertabpanel#widgets#jumplist#jump(info) abort
   if idx < 0 || idx >= len(s:snapshot)
     return 0
   endif
+  call supertabpanel#flash('jumplist', idx)
   let diff = idx - s:snapshot_cur
   if diff < 0
     execute 'normal! ' .. (-diff) .. "\<C-O>"
@@ -42,10 +42,9 @@ function! supertabpanel#widgets#jumplist#render() abort
     if name ==# '' | let name = '[No Name]' | endif
     let name = supertabpanel#truncate(name, supertabpanel#content_width(10))
     let name = substitute(name, '%', '%%', 'g')
-    let hl = idx == s:snapshot_cur ? '%#SuperTabPanelJlCur#' : '%#SuperTabPanelJl#'
-    let mark = idx == s:snapshot_cur ? '▶ ' : '  '
+    let hl = supertabpanel#flash_hl('jumplist', idx, '%#SuperTabPanelJl#')
     let result ..= '%' .. idx .. '[supertabpanel#widgets#jumplist#jump]'
-          \ .. hl .. mark .. name .. ':' .. j.lnum .. '%[]%@'
+          \ .. hl .. '  ' .. name .. ':' .. j.lnum .. '%[]%@'
     let idx += 1
   endfor
   return result

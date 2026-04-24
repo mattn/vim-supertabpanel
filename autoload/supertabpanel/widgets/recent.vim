@@ -14,6 +14,7 @@ endfunction
 function! supertabpanel#widgets#recent#open(info) abort
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:cached)
+    call supertabpanel#flash('recent', idx)
     execute 'edit ' .. fnameescape(s:cached[idx])
   endif
   return 1
@@ -26,8 +27,9 @@ function! supertabpanel#widgets#recent#render() abort
     let name = fnamemodify(f, ':t')
     let name = supertabpanel#truncate(name, supertabpanel#content_width(4))
     let name = substitute(name, '%', '%%', 'g')
+    let hl = supertabpanel#flash_hl('recent', idx, '%#SuperTabPanelRecent#')
     let result ..= '%' .. idx .. '[supertabpanel#widgets#recent#open]'
-          \ .. '%#SuperTabPanelRecent#  ' .. name .. '%[]%@'
+          \ .. hl .. '  ' .. name .. '%[]%@'
     let idx += 1
   endfor
   return result

@@ -228,11 +228,50 @@ endfunction
 function! s:setup_colors() abort
   hi default SuperTabPanelNormal  guifg=#a9b1d6 guibg=#1a1b26 ctermfg=249 ctermbg=234
   hi default SuperTabPanelSep     guifg=#3b4261 guibg=#1a1b26 ctermfg=238 ctermbg=234
+  hi default SuperTabPanelFlash   guifg=#1a1b26 guibg=#7dcfff gui=bold cterm=bold ctermfg=234 ctermbg=117
   " Flatten Vim's default tab-selection indicator column so the tabpanel
   " doesn't show a purple stripe on the left edge of the active tab.
   hi default TabPanel     guifg=#a9b1d6 guibg=#1a1b26 gui=NONE cterm=NONE ctermfg=249 ctermbg=234
   hi default TabPanelSel  guifg=#a9b1d6 guibg=#1a1b26 gui=NONE cterm=NONE ctermfg=249 ctermbg=234
   hi default TabPanelFill guifg=#a9b1d6 guibg=#1a1b26 gui=NONE cterm=NONE ctermfg=249 ctermbg=234
+endfunction
+
+" ---- Click feedback ----
+" Briefly highlight a row to show that a click registered.  The click
+" handler calls supertabpanel#flash(key, idx) before its action; render
+" functions call supertabpanel#flash_hl(key, idx, default_hl) to pick
+" the highlight group for each row.  A single flash is tracked globally
+" — that's fine because only one click fires at a time.
+let s:flash = #{ key: '', idx: -1, timer: -1 }
+let s:flash_duration = 150
+
+function! s:flash_clear(timer) abort
+  let s:flash.key = ''
+  let s:flash.idx = -1
+  let s:flash.timer = -1
+  if &showtabpanel
+    redrawtabpanel
+  endif
+endfunction
+
+function! supertabpanel#flash(key, idx) abort
+  if s:flash.timer > 0
+    call timer_stop(s:flash.timer)
+  endif
+  let s:flash.key = a:key
+  let s:flash.idx = a:idx
+  let s:flash.timer = timer_start(s:flash_duration,
+        \ function('s:flash_clear'))
+  if &showtabpanel
+    redrawtabpanel
+  endif
+endfunction
+
+function! supertabpanel#flash_hl(key, idx, default_hl) abort
+  if s:flash.key ==# a:key && s:flash.idx == a:idx
+    return '%#SuperTabPanelFlash#'
+  endif
+  return a:default_hl
 endfunction
 
 " ---- Setup / animation ----
