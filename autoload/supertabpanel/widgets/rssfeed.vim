@@ -189,6 +189,14 @@ function! supertabpanel#widgets#rssfeed#click(info) abort
   if idx < 0 || idx >= len(inst.items)
     return 0
   endif
+  " Only one rssfeed popup is allowed at a time — if another instance is
+  " showing one, close it and clear its selection so the old highlight
+  " doesn't linger after we switch to this feed.
+  for other in s:instances
+    if other.id != id && other.popup > 0 && popup_getpos(other.popup) != {}
+      call popup_close(other.popup)
+    endif
+  endfor
   let inst.selected = idx
   redrawtabpanel
   let item = inst.items[idx]
