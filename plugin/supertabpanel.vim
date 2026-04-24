@@ -5,9 +5,18 @@ if exists('g:loaded_supertabpanel')
 endif
 let g:loaded_supertabpanel = 1
 
+" Requires Vim 9.2.386 for `scroll`/`scrollbar` in 'tabpanelopt' (v9.2.0386)
+" and %[FuncName] click handler support (v9.2.0360).
+if !has('patch-9.2.386')
+  echohl WarningMsg
+  echom 'vim-supertabpanel requires Vim 9.2.386 or later'
+  echohl None
+  finish
+endif
+
 if !has('tabpanel')
   echohl WarningMsg
-  echom 'vim-supertabpanel: +tabpanel feature is required'
+  echom 'vim-supertabpanel: this Vim build does not have the +tabpanel feature'
   echohl None
   finish
 endif

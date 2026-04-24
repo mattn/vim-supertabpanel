@@ -6,7 +6,8 @@ into rotatable panels that you switch between with a single key.
 
 ## Requirements
 
-- Vim 9.2 with the `+tabpanel` feature (`:echo has('tabpanel')` returns 1)
+- Vim 9.2.386 or later (`scroll`/`scrollbar` support in `'tabpanelopt'`)
+- Built with the `+tabpanel` feature (`:echo has('tabpanel')` returns 1)
 
 ## Install
 
