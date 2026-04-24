@@ -140,7 +140,7 @@ function! s:render(id) abort
   endif
   let items = inst.max > 0 ? inst.items[: inst.max - 1] : inst.items
   for item in items
-    let text = supertabpanel#truncate(item, supertabpanel#content_width(4))
+    let text = supertabpanel#truncate(item, supertabpanel#content_width(6))
     let text = substitute(text, '%', '%%', 'g')
     let result ..= '%#SuperTabPanelNh#  • ' .. text .. '%@'
   endfor
