@@ -84,7 +84,7 @@ function! supertabpanel#activate(panel) abort
   if &showtabpanel == 0
     let s:current_panel = idx
     call s:activate_current()
-    let &tabpanelopt = 'columns:4,vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:4,vert,scrollbar'
     set showtabpanel=2
     let s:anim_phase = 'open'
     let s:anim_timer = timer_start(20,
@@ -371,7 +371,7 @@ function! supertabpanel#setup(...) abort
     autocmd ColorScheme * call s:setup_colors()
   augroup END
 
-  let &tabpanelopt = 'columns:' .. s:columns .. ',vert,scroll,scrollbar'
+  let &tabpanelopt = 'columns:' .. s:columns .. ',vert,scrollbar'
   if &fillchars !~# 'tpl_vert:'
     set fillchars+=tpl_vert:│
   endif
@@ -396,7 +396,7 @@ function! supertabpanel#rotate(...) abort
     let n = len(s:panels)
     let s:current_panel = ((s:current_panel + step) % n + n) % n
     call s:activate_current()
-    let &tabpanelopt = 'columns:4,vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:4,vert,scrollbar'
     set showtabpanel=2
     let s:anim_phase = 'open'
   else
@@ -411,7 +411,7 @@ function! s:rotate_step(timer) abort
   if s:anim_phase ==# 'close'
     let cur -= 4
     if cur <= 0
-      let &tabpanelopt = 'columns:4,vert,scroll,scrollbar'
+      let &tabpanelopt = 'columns:4,vert,scrollbar'
       call s:deactivate_current()
       if s:anim_target >= 0
         let s:current_panel = s:anim_target
@@ -428,7 +428,7 @@ function! s:rotate_step(timer) abort
       redrawtabpanel
       return
     endif
-    let &tabpanelopt = 'columns:' .. cur .. ',vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:' .. cur .. ',vert,scrollbar'
   else
     let cur += 4
     if cur >= s:columns
@@ -437,7 +437,7 @@ function! s:rotate_step(timer) abort
       let s:anim_timer = -1
       echo '▶ ' .. s:panels[s:current_panel].name
     endif
-    let &tabpanelopt = 'columns:' .. cur .. ',vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:' .. cur .. ',vert,scrollbar'
   endif
 endfunction
 
@@ -449,7 +449,7 @@ function! supertabpanel#toggle() abort
   endif
   if &showtabpanel == 0
     call s:activate_current()
-    let &tabpanelopt = 'columns:4,vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:4,vert,scrollbar'
     set showtabpanel=2
     let s:anim_phase = 'open'
     let s:anim_timer = timer_start(20,
@@ -470,7 +470,7 @@ function! s:toggle_step(timer) abort
       call timer_stop(a:timer)
       let s:anim_timer = -1
     endif
-    let &tabpanelopt = 'columns:' .. cur .. ',vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:' .. cur .. ',vert,scrollbar'
   else
     let cur -= 4
     if cur <= 0
@@ -480,6 +480,6 @@ function! s:toggle_step(timer) abort
       set showtabpanel=0
       return
     endif
-    let &tabpanelopt = 'columns:' .. cur .. ',vert,scroll,scrollbar'
+    let &tabpanelopt = 'columns:' .. cur .. ',vert,scrollbar'
   endif
 endfunction
