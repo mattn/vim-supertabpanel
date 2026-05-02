@@ -70,6 +70,38 @@ function! s:parse_rss(xml) abort
   return out
 endfunction
 
+" Detect a non-UTF-8 charset declared by the HTML head.  Returns '' when
+" the document is already UTF-8 or no declaration was found.
+function! s:detect_charset(html) abort
+  let head = a:html[: 4000]
+  let m = matchlist(head,
+        \ '\c<meta\s\+charset\s*=\s*["'']\?\([A-Za-z0-9_-]\+\)')
+  if empty(m)
+    let m = matchlist(head,
+          \ '\c<meta\s\+http-equiv\s*=\s*["'']\?content-type[^>]*charset\s*=\s*["'']\?\([A-Za-z0-9_-]\+\)')
+  endif
+  if empty(m)
+    return ''
+  endif
+  let cs = tolower(m[1])
+  if cs ==# 'utf-8' || cs ==# 'utf8'
+    return ''
+  endif
+  return cs
+endfunction
+
+" Re-encode HTML into &encoding when it declares a non-UTF-8 charset.
+" Job output bytes are treated as &encoding (typically utf-8); a page
+" served as shift_jis / euc-jp / etc renders as mojibake without this.
+function! s:to_internal(html) abort
+  let cs = s:detect_charset(a:html)
+  if cs ==# ''
+    return a:html
+  endif
+  let out = iconv(a:html, cs, &encoding)
+  return out ==# '' ? a:html : out
+endfunction
+
 function! s:on_rss_chunk(id, ch, msg) abort
   call add(s:instances[a:id].rss_buf, a:msg)
 endfunction
@@ -280,7 +312,7 @@ function! s:on_done(id, popup_id, gen, title, job, status) abort
   if a:popup_id != inst.popup || popup_getpos(a:popup_id) == {}
     return
   endif
-  let html = a:status == 0 ? join(inst.fetch_buf, "\n") : ''
+  let html = a:status == 0 ? s:to_internal(join(inst.fetch_buf, "\n")) : ''
   call popup_settext(a:popup_id,
         \ s:parse_article(a:title, inst.content_selector, html))
 endfunction
