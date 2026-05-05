@@ -20,6 +20,16 @@ function! s:setup_colors() abort
   hi default SuperTabPanelRss     guifg=#a9b1d6 guibg=#1a1b26 ctermfg=249 ctermbg=234
 endfunction
 
+" Strip zero-width / bidi / word-joiner / BOM characters that Vim renders
+" as <200B>, <200C> etc.  Hatena and other scrapers sprinkle these into
+" titles and article bodies and they make the panel look broken.
+function! s:strip_invisibles(s) abort
+  let pat = '\%u200B\|\%u200C\|\%u200D\|\%u200E\|\%u200F'
+        \ . '\|\%u202A\|\%u202B\|\%u202C\|\%u202D\|\%u202E'
+        \ . '\|\%u2060\|\%uFEFF'
+  return substitute(a:s, pat, '', 'g')
+endfunction
+
 function! s:decode_entities(s) abort
   let s = a:s
   " Numeric character references — handle these first so e.g. &#38; (=&)
@@ -33,7 +43,7 @@ function! s:decode_entities(s) abort
   let s = substitute(s, '&quot;', '"', 'g')
   let s = substitute(s, '&apos;', "'", 'g')
   let s = substitute(s, '&amp;', '\&', 'g')
-  return s
+  return s:strip_invisibles(s)
 endfunction
 
 function! s:parse_rss(xml) abort
@@ -68,38 +78,6 @@ function! s:parse_rss(xml) abort
     endif
   endfor
   return out
-endfunction
-
-" Detect a non-UTF-8 charset declared by the HTML head.  Returns '' when
-" the document is already UTF-8 or no declaration was found.
-function! s:detect_charset(html) abort
-  let head = a:html[: 4000]
-  let m = matchlist(head,
-        \ '\c<meta\s\+charset\s*=\s*["'']\?\([A-Za-z0-9_-]\+\)')
-  if empty(m)
-    let m = matchlist(head,
-          \ '\c<meta\s\+http-equiv\s*=\s*["'']\?content-type[^>]*charset\s*=\s*["'']\?\([A-Za-z0-9_-]\+\)')
-  endif
-  if empty(m)
-    return ''
-  endif
-  let cs = tolower(m[1])
-  if cs ==# 'utf-8' || cs ==# 'utf8'
-    return ''
-  endif
-  return cs
-endfunction
-
-" Re-encode HTML into &encoding when it declares a non-UTF-8 charset.
-" Job output bytes are treated as &encoding (typically utf-8); a page
-" served as shift_jis / euc-jp / etc renders as mojibake without this.
-function! s:to_internal(html) abort
-  let cs = s:detect_charset(a:html)
-  if cs ==# ''
-    return a:html
-  endif
-  let out = iconv(a:html, cs, &encoding)
-  return out ==# '' ? a:html : out
 endfunction
 
 function! s:on_rss_chunk(id, ch, msg) abort
@@ -228,6 +206,46 @@ function! s:narrow_body(html, selector) abort
   return html
 endfunction
 
+" Sniff a charset declaration from raw HTML bytes.  Both forms supported:
+"   <meta charset="...">
+"   <meta http-equiv="Content-Type" content="text/html; charset=...">
+" Charset names are ASCII so we can match against the raw byte stream
+" before any decoding.  Returns '' when nothing was declared.
+function! s:detect_charset(html) abort
+  let m = matchlist(a:html,
+        \ '\c<meta\s\+[^>]*charset\s*=\s*["'']\?\([A-Za-z0-9_-]\+\)')
+  if !empty(m)
+    return m[1]
+  endif
+  let m = matchlist(a:html,
+        \ '\c<?xml\s\+[^>]*encoding\s*=\s*["'']\([A-Za-z0-9_-]\+\)')
+  if !empty(m)
+    return m[1]
+  endif
+  return ''
+endfunction
+
+" Re-encode {html} into &encoding if its declared charset differs.  Job
+" output bytes are treated as &encoding (typically utf-8); pages served
+" as shift_jis / euc-jp / etc render as mojibake without this.  Falls
+" back to the original bytes if iconv() can't handle the source charset.
+"
+" Special case: pages declaring `shift_jis` almost always actually use
+" CP932 (Microsoft's superset with NEC/IBM extensions — circled digits,
+" roman numerals, ™, etc).  Decoding strict Shift_JIS drops those bytes,
+" so route through CP932 instead.
+function! s:to_internal(html) abort
+  let cs = s:detect_charset(a:html)
+  if cs ==# '' || cs =~? '^utf-\?8$'
+    return a:html
+  endif
+  if cs =~? '^\(shift[-_]\?jis\|sjis\|x-sjis\)$'
+    let cs = 'cp932'
+  endif
+  let conv = iconv(a:html, cs, &encoding)
+  return conv ==# '' ? a:html : conv
+endfunction
+
 function! s:decode_html_entities(s) abort
   let s = a:s
   let s = substitute(s, '&nbsp;', ' ', 'g')
@@ -236,7 +254,7 @@ function! s:decode_html_entities(s) abort
   let s = substitute(s, '&quot;', '"', 'g')
   let s = substitute(s, '&#39;', "'", 'g')
   let s = substitute(s, '&amp;', '\&', 'g')
-  return s
+  return s:strip_invisibles(s)
 endfunction
 
 " Collect <p> inner text blocks, one line per paragraph.  Returns [] if
