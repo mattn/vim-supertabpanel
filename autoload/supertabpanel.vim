@@ -133,6 +133,14 @@ function! supertabpanel#current_panel_name() abort
   return s:panels[s:current_panel].name
 endfunction
 
+" Invariant: a widget's `on_activate` is in effect iff its panel is the
+" current panel AND the tabpanel is visible (`&showtabpanel != 0`).
+" Command-running widgets (docker, k8s_pods, gitstatus, rss feeds, ...)
+" rely on this to avoid spawning jobs/timers while the panel is hidden.
+" Callers that flip visibility own the activate/deactivate dance —
+" `s:activate_current` / `s:deactivate_current` are raw dispatchers and
+" do not check visibility themselves, because some sites need to prime
+" widgets *before* setting `showtabpanel=2` so the first redraw has data.
 function! s:activate_current() abort
   for name in s:current_widget_names()
     let w = get(s:widgets, name, {})
@@ -155,9 +163,14 @@ function! supertabpanel#switch_panel(idx) abort
   if a:idx < 0 || a:idx >= len(s:panels) || a:idx == s:current_panel
     return
   endif
-  call s:deactivate_current()
+  let visible = &showtabpanel != 0
+  if visible
+    call s:deactivate_current()
+  endif
   let s:current_panel = a:idx
-  call s:activate_current()
+  if visible
+    call s:activate_current()
+  endif
   if exists('*tabpanel_setscroll')
     call tabpanel_setscroll(0)
   endif
@@ -377,7 +390,14 @@ function! supertabpanel#setup(...) abort
   endif
   set tabpanel=%!supertabpanel#dispatch()
 
-  call s:activate_current()
+  " Defer widget activation until the tabpanel is actually shown.  At
+  " VimEnter `showtabpanel` is 0 by default, so command-running widgets
+  " stay quiet until the user opens the panel via toggle/rotate/activate.
+  " If the user (or their vimrc) has already turned the panel on before
+  " calling setup, honour that and activate immediately.
+  if &showtabpanel != 0
+    call s:activate_current()
+  endif
 endfunction
 
 " ---- Rotation with close/open animation ----
