@@ -48,6 +48,7 @@ endfunction
 function! supertabpanel#widgets#pullrequests#open(info) abort
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:prs)
+    call supertabpanel#flash('pullrequests', idx)
     let url = s:prs[idx].url
     if executable('xdg-open')
       call job_start(['xdg-open', url])
@@ -71,9 +72,11 @@ function! supertabpanel#widgets#pullrequests#render() abort
     let hl = p.isDraft ? '%#SuperTabPanelPrDraft#' : '%#SuperTabPanelPrOpen#'
     let title = supertabpanel#truncate(p.title, supertabpanel#content_width(12))
     let title = substitute(title, '%', '%%', 'g')
+    let num_hl = supertabpanel#flash_hl('pullrequests', idx, hl)
+    let title_hl = supertabpanel#flash_hl('pullrequests', idx, '%#SuperTabPanelPr#')
     let result ..= '%' .. idx .. '[supertabpanel#widgets#pullrequests#open]'
-          \ .. hl .. '  #' .. p.number .. ' '
-          \ .. '%#SuperTabPanelPr#' .. title .. '%[]%@'
+          \ .. num_hl .. '  #' .. p.number .. ' '
+          \ .. title_hl .. title .. '%[]%@'
     let idx += 1
   endfor
   return result

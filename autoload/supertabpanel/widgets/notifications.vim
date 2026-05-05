@@ -47,6 +47,7 @@ endfunction
 function! supertabpanel#widgets#notifications#open(info) abort
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:items)
+    call supertabpanel#flash('notifications', idx)
     let url = s:items[idx].subject.url
     " Convert API URL to HTML URL.
     let url = substitute(url, 'api.github.com/repos', 'github.com', '')
@@ -76,6 +77,7 @@ function! supertabpanel#widgets#notifications#render() abort
     let text = supertabpanel#truncate(repo .. ' ' .. title, supertabpanel#content_width(5))
     let text = substitute(text, '%', '%%', 'g')
     let hl = n.unread ? '%#SuperTabPanelNfUnr#' : '%#SuperTabPanelNf#'
+    let hl = supertabpanel#flash_hl('notifications', idx, hl)
     let result ..= '%' .. idx .. '[supertabpanel#widgets#notifications#open]'
           \ .. hl .. '  ' .. text .. '%[]%@'
     let idx += 1
