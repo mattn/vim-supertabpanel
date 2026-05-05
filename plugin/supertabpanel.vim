@@ -139,6 +139,9 @@ let g:supertabpanel_panels = get(g:, 'supertabpanel_panels', [
       \ #{ name: 'Files',     items: [
       \   'supertabpanel#widgets#filetree',
       \ ]},
+      \ #{ name: 'Look',      items: [
+      \   'supertabpanel#widgets#colorscheme',
+      \ ]},
       \ ])
 let g:supertabpanel_columns = get(g:, 'supertabpanel_columns', 32)
 let g:supertabpanel_default = get(g:, 'supertabpanel_default', 0)
