@@ -130,6 +130,80 @@ function! supertabpanel#widgets#nanohi#open(info) abort
   return 1
 endfunction
 
+function! s:on_popup_filter(id, key) abort
+  if a:key ==# 'j' || a:key ==# "\<Down>"
+    call win_execute(a:id, "normal! \<C-E>")
+    return 1
+  endif
+  if a:key ==# 'k' || a:key ==# "\<Up>"
+    call win_execute(a:id, "normal! \<C-Y>")
+    return 1
+  endif
+  if a:key ==# 'q'
+    call popup_close(a:id)
+    return 1
+  endif
+  return 0
+endfunction
+
+function! s:on_popup_close(id, result) abort
+  for inst in s:instances
+    if inst.popup == a:id
+      let inst.selected = -1
+      let inst.popup = -1
+      redrawtabpanel
+      return
+    endif
+  endfor
+endfunction
+
+" Click dispatcher for individual items: minwid encodes id * 1000 + idx.
+function! supertabpanel#widgets#nanohi#click(info) abort
+  let code = a:info.minwid
+  let id = code / 1000
+  let idx = code % 1000
+  if id < 0 || id >= len(s:instances)
+    return 0
+  endif
+  let inst = s:instances[id]
+  if idx < 0 || idx >= len(inst.items)
+    return 0
+  endif
+  " Only one nanohi popup at a time across instances.
+  for other in s:instances
+    if other.id != id && other.popup > 0 && popup_getpos(other.popup) != {}
+      call popup_close(other.popup)
+    endif
+  endfor
+  let inst.selected = idx
+  redrawtabpanel
+  let text = inst.items[idx]
+  let max_w = &columns > 70 ? 60 : &columns - 10
+  if max_w < 20
+    let max_w = 20
+  endif
+  if inst.popup > 0 && popup_getpos(inst.popup) != {}
+    call popup_settext(inst.popup, [text])
+    call popup_setoptions(inst.popup, #{ maxwidth: max_w })
+  else
+    let inst.popup = popup_create([text], #{
+          \ border: [],
+          \ borderchars: ['─','│','─','│','╭','╮','╯','╰'],
+          \ maxwidth: max_w,
+          \ maxheight: 20,
+          \ padding: [0,1,0,1],
+          \ wrap: 1,
+          \ scrollbar: 1,
+          \ close: 'click',
+          \ filter: function('s:on_popup_filter'),
+          \ callback: function('s:on_popup_close'),
+          \ highlight: 'SuperTabPanelNh',
+          \ borderhighlight: ['SuperTabPanelSep'],
+          \ })
+  endif
+  return 1
+endfunction
+
 function! s:render(id) abort
   let inst = s:instances[a:id]
   let header = '%#SuperTabPanelNhHead#  ' .. inst.icon .. ' ' .. inst.name
@@ -139,10 +213,17 @@ function! s:render(id) abort
     return result .. '%#SuperTabPanelNh#  fetching...%@'
   endif
   let items = inst.max > 0 ? inst.items[: inst.max - 1] : inst.items
+  let idx = 0
   for item in items
     let text = supertabpanel#truncate(item, supertabpanel#content_width(7))
     let text = substitute(text, '%', '%%', 'g')
-    let result ..= '%#SuperTabPanelNh#  • ' .. text .. '%@'
+    let hl = idx == inst.selected
+          \ ? '%#SuperTabPanelNhHead#'
+          \ : '%#SuperTabPanelNh#'
+    let code = a:id * 1000 + idx
+    let result ..= '%' .. code .. '[supertabpanel#widgets#nanohi#click]'
+          \ .. hl .. '  • ' .. text .. '%[]%@'
+    let idx += 1
   endfor
   return result
 endfunction
@@ -177,6 +258,11 @@ function! s:deactivate(id) abort
     call job_stop(inst.job)
   endif
   let inst.job = v:null
+  if inst.popup > 0 && popup_getpos(inst.popup) != {}
+    call popup_close(inst.popup)
+  endif
+  let inst.popup = -1
+  let inst.selected = -1
 endfunction
 
 function! supertabpanel#widgets#nanohi#instance(params) abort
@@ -204,6 +290,8 @@ function! supertabpanel#widgets#nanohi#instance(params) abort
         \ job: v:null,
         \ timer: -1,
         \ fetched_key: '',
+        \ popup: -1,
+        \ selected: -1,
         \ })
   return #{
         \ icon: icon,
