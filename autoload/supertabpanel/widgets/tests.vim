@@ -54,6 +54,7 @@ endfunction
 
 " minwid encodes id*10 + action (0=run, 1=show)
 function! supertabpanel#widgets#tests#click(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let code = a:info.minwid
   let id = code / 10
   let action = code % 10

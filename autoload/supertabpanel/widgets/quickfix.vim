@@ -8,6 +8,7 @@ function! s:setup_colors() abort
 endfunction
 
 function! supertabpanel#widgets#quickfix#jump(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0
     execute (idx + 1) .. 'cc'

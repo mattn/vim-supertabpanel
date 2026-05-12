@@ -45,6 +45,7 @@ function! supertabpanel#widgets#notifications#refresh(timer) abort
 endfunction
 
 function! supertabpanel#widgets#notifications#open(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:items)
     call supertabpanel#flash('notifications', idx)

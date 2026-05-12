@@ -34,6 +34,7 @@ function! s:rotate(id, timer) abort
 endfunction
 
 function! supertabpanel#widgets#asciiart#next(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let id = a:info.minwid
   if id < 0 || id >= len(s:instances)
     return 0

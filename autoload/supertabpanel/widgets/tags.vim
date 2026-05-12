@@ -39,6 +39,7 @@ function! s:refresh() abort
 endfunction
 
 function! supertabpanel#widgets#tags#jump(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:tags)
     let lnum = s:tags[idx].lnum

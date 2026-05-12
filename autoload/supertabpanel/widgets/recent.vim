@@ -12,6 +12,7 @@ function! s:refresh() abort
 endfunction
 
 function! supertabpanel#widgets#recent#open(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:cached)
     call supertabpanel#flash('recent', idx)

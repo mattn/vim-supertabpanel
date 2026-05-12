@@ -93,6 +93,7 @@ function! s:clear_opened(timer) abort
 endfunction
 
 function! supertabpanel#widgets#hackernews#open(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:stories)
     let s = s:stories[idx]

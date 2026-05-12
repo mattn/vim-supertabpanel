@@ -34,6 +34,7 @@ function! s:tick(timer) abort
 endfunction
 
 function! supertabpanel#widgets#pomodoro#start(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   if !s:running
     let s:running = 1
     if s:timer == -1
@@ -48,6 +49,7 @@ function! supertabpanel#widgets#pomodoro#start(info) abort
 endfunction
 
 function! supertabpanel#widgets#pomodoro#reset(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let s:running = 0
   let s:mode = 'work'
   let s:remaining = s:work_sec

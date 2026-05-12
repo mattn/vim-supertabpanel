@@ -24,6 +24,7 @@ function! supertabpanel#widgets#clipboard#record() abort
 endfunction
 
 function! supertabpanel#widgets#clipboard#paste(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:history)
     call setreg('"', s:history[idx])

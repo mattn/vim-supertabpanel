@@ -64,6 +64,7 @@ endfunction
 
 " minwid encodes id*1000 + idx.
 function! supertabpanel#widgets#github_trending#open(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let code = a:info.minwid
   let id = code / 1000
   let idx = code % 1000

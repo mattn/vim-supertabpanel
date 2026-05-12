@@ -25,6 +25,7 @@ function! s:refresh() abort
 endfunction
 
 function! supertabpanel#widgets#marks#jump(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:marks)
     call supertabpanel#flash('marks', idx)

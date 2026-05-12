@@ -12,6 +12,7 @@ let s:regs = ['"', '*', '+', '-', '0', '1', '2', '3', '4', '5',
       \ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
 
 function! supertabpanel#widgets#registers#paste(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx < 0 || idx >= len(s:regs)
     return 0

@@ -46,6 +46,7 @@ function! supertabpanel#widgets#pullrequests#refresh(timer) abort
 endfunction
 
 function! supertabpanel#widgets#pullrequests#open(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx >= 0 && idx < len(s:prs)
     call supertabpanel#flash('pullrequests', idx)

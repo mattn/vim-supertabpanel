@@ -28,6 +28,7 @@ function! s:refresh(timer) abort
 endfunction
 
 function! supertabpanel#widgets#docker#toggle(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx < 0 || idx >= len(s:containers)
     return 0

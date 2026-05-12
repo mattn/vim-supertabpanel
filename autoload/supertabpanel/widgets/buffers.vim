@@ -8,6 +8,7 @@ function! s:setup_colors() abort
 endfunction
 
 function! supertabpanel#widgets#buffers#goto(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let nr = a:info.minwid
   if bufexists(nr)
     execute 'buffer ' .. nr

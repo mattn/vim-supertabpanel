@@ -73,6 +73,7 @@ function! s:rebuild() abort
 endfunction
 
 function! supertabpanel#widgets#filetree#click(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   if idx < 0 || idx >= len(s:entries)
     return 0
@@ -93,6 +94,7 @@ function! supertabpanel#widgets#filetree#click(info) abort
 endfunction
 
 function! supertabpanel#widgets#filetree#up(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let s:root = fnamemodify(s:root, ':h')
   call s:rebuild()
   redrawtabpanel
@@ -100,6 +102,7 @@ function! supertabpanel#widgets#filetree#up(info) abort
 endfunction
 
 function! supertabpanel#widgets#filetree#refresh(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   call s:rebuild()
   redrawtabpanel
   return 1

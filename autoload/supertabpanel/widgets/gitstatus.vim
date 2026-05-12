@@ -75,6 +75,7 @@ function! s:refresh(timer) abort
 endfunction
 
 function! supertabpanel#widgets#gitstatus#open_status(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   if exists(':Git')
     execute 'Git'
   else

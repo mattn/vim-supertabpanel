@@ -249,6 +249,17 @@ function! s:setup_colors() abort
   hi default TabPanelFill guifg=#a9b1d6 guibg=#1a1b26 gui=NONE cterm=NONE ctermfg=249 ctermbg=234
 endfunction
 
+" ---- Click handling ----
+" True when {info} represents a non-first click of a multi-click sequence
+" (the second click of a double-click, etc).  Click handlers should bail
+" out early in that case — otherwise an action fires twice on double
+" click, and the trailing <2-LeftMouse>/<3-LeftMouse> events can leak
+" into the focused window's normal-mode mappings (e.g. vim-matchup's
+" text-object handler).
+function! supertabpanel#is_repeat_click(info) abort
+  return get(a:info, 'clicks', 1) > 1
+endfunction
+
 " ---- Click feedback ----
 " Briefly highlight a row to show that a click registered.  The click
 " handler calls supertabpanel#flash(key, idx) before its action; render

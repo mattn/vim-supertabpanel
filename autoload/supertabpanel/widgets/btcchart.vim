@@ -58,6 +58,7 @@ function! supertabpanel#widgets#btcchart#fetch(timer) abort
 endfunction
 
 function! supertabpanel#widgets#btcchart#toggle_currency(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let s:currency = s:currency ==# 'usd' ? 'jpy' : 'usd'
   let s:prices = []
   let s:prices_gen += 1

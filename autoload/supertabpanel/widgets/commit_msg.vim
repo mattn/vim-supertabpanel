@@ -36,6 +36,7 @@ function! s:on_done(id, job, status) abort
 endfunction
 
 function! supertabpanel#widgets#commit_msg#generate(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let id = a:info.minwid
   if id < 0 || id >= len(s:instances)
     return 0

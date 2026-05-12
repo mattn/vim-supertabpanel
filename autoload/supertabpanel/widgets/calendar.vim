@@ -10,18 +10,21 @@ function! s:setup_colors() abort
 endfunction
 
 function! supertabpanel#widgets#calendar#prev_month(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let s:offset -= 1
   redrawtabpanel
   return 1
 endfunction
 
 function! supertabpanel#widgets#calendar#next_month(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let s:offset += 1
   redrawtabpanel
   return 1
 endfunction
 
 function! supertabpanel#widgets#calendar#goto_today(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let s:offset = 0
   redrawtabpanel
   return 1

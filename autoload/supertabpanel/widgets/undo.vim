@@ -7,6 +7,7 @@ function! s:setup_colors() abort
 endfunction
 
 function! supertabpanel#widgets#undo#goto(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let num = a:info.minwid
   if num > 0
     execute 'undo ' .. num

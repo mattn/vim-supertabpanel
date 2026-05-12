@@ -116,6 +116,7 @@ endfunction
 
 " minwid encodes id * 1000 + idx.
 function! supertabpanel#widgets#podcast#play(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let code = a:info.minwid
   let id = code / 1000
   let idx = code % 1000
@@ -140,6 +141,7 @@ function! supertabpanel#widgets#podcast#play(info) abort
 endfunction
 
 function! supertabpanel#widgets#podcast#stop(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   call s:stop_play()
   redrawtabpanel
   return 1

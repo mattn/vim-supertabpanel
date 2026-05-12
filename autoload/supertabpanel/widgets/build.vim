@@ -32,6 +32,7 @@ function! s:count() abort
 endfunction
 
 function! supertabpanel#widgets#build#run(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   silent! make!
   call s:count()
   redrawtabpanel
@@ -39,6 +40,7 @@ function! supertabpanel#widgets#build#run(info) abort
 endfunction
 
 function! supertabpanel#widgets#build#open_qf(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   copen
   return 1
 endfunction

@@ -9,6 +9,7 @@ function! s:setup_colors() abort
 endfunction
 
 function! supertabpanel#widgets#macros#play(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let idx = a:info.minwid
   let name = nr2char(char2nr('a') + idx)
   execute 'normal! @' .. name
