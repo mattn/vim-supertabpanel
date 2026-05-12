@@ -378,6 +378,7 @@ endfunction
 
 " Click dispatcher: minwid encodes id * 1000 + idx.
 function! supertabpanel#widgets#rssfeed#click(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let code = a:info.minwid
   let id = code / 1000
   let idx = code % 1000
@@ -412,6 +413,7 @@ function! supertabpanel#widgets#rssfeed#click(info) abort
           \ scrollbar: 1,
           \ close: 'click',
           \ filter: function('s:on_popup_filter', [id]),
+          \ filtermode: 'n',
           \ callback: function('s:on_popup_close'),
           \ highlight: 'SuperTabPanelRss',
           \ borderhighlight: ['SuperTabPanelSep'],

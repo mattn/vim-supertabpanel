@@ -35,6 +35,7 @@ endfunction
 " minwid encodes id*1000 + (idx+1) for items, or -id-1 for add, -(id+1)*2
 " would conflict.  Easier: use separate click functions for buttons.
 function! supertabpanel#widgets#todo#toggle(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let code = a:info.minwid
   let id = code / 1000
   let idx = code % 1000
@@ -79,6 +80,7 @@ function! s:add_done(id, result) abort
 endfunction
 
 function! supertabpanel#widgets#todo#add(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let id = a:info.minwid
   if id < 0 || id >= len(s:instances)
     return 0
@@ -91,12 +93,14 @@ function! supertabpanel#widgets#todo#add(info) abort
         \ padding: [0, 1, 0, 1],
         \ minwidth: 40,
         \ filter: function('s:add_filter'),
+        \ filtermode: 'n',
         \ callback: function('s:add_done'),
         \ })
   return 1
 endfunction
 
 function! supertabpanel#widgets#todo#remove_done(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let id = a:info.minwid
   if id < 0 || id >= len(s:instances)
     return 0

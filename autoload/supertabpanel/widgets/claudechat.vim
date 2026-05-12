@@ -45,6 +45,7 @@ function! s:ask_done(id, result) abort
 endfunction
 
 function! supertabpanel#widgets#claudechat#ask(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let id = a:info.minwid
   if id < 0 || id >= len(s:instances)
     return 0
@@ -56,6 +57,7 @@ function! supertabpanel#widgets#claudechat#ask(info) abort
         \ border: [], padding: [0, 1, 0, 1],
         \ minwidth: 60,
         \ filter: function('s:ask_prompt_filter'),
+        \ filtermode: 'n',
         \ callback: function('s:ask_done'),
         \ })
   return 1

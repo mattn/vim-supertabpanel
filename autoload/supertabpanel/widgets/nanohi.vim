@@ -117,6 +117,7 @@ function! s:fetch(id, timer) abort
 endfunction
 
 function! supertabpanel#widgets#nanohi#open(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let id = a:info.minwid
   if id < 0 || id >= len(s:instances)
     return 0
@@ -159,6 +160,7 @@ endfunction
 
 " Click dispatcher for individual items: minwid encodes id * 1000 + idx.
 function! supertabpanel#widgets#nanohi#click(info) abort
+  if supertabpanel#is_repeat_click(a:info) | return 1 | endif
   let code = a:info.minwid
   let id = code / 1000
   let idx = code % 1000
@@ -196,6 +198,7 @@ function! supertabpanel#widgets#nanohi#click(info) abort
           \ scrollbar: 1,
           \ close: 'click',
           \ filter: function('s:on_popup_filter'),
+          \ filtermode: 'n',
           \ callback: function('s:on_popup_close'),
           \ highlight: 'SuperTabPanelNh',
           \ borderhighlight: ['SuperTabPanelSep'],
