@@ -335,17 +335,30 @@ function! s:on_done(id, popup_id, gen, title, job, status) abort
         \ s:parse_article(a:title, inst.content_selector, html))
 endfunction
 
-function! s:on_popup_filter(id, key) abort
+function! s:on_popup_filter(inst_id, popup_id, key) abort
   if a:key ==# 'j' || a:key ==# "\<Down>"
-    call win_execute(a:id, "normal! \<C-E>")
+    call win_execute(a:popup_id, "normal! \<C-E>")
     return 1
   endif
   if a:key ==# 'k' || a:key ==# "\<Up>"
-    call win_execute(a:id, "normal! \<C-Y>")
+    call win_execute(a:popup_id, "normal! \<C-Y>")
+    return 1
+  endif
+  if a:key ==# 'o' || a:key ==# "\<CR>"
+    let url = s:instances[a:inst_id].popup_url
+    if url !=# ''
+      if executable('xdg-open')
+        call job_start(['xdg-open', url])
+      elseif executable('open')
+        call job_start(['open', url])
+      elseif executable('rundll32')
+        call job_start(['rundll32', 'url.dll,FileProtocolHandler', url])
+      endif
+    endif
     return 1
   endif
   if a:key ==# 'q'
-    call popup_close(a:id)
+    call popup_close(a:popup_id)
     return 1
   endif
   return 0
@@ -356,6 +369,7 @@ function! s:on_popup_close(id, result) abort
     if inst.popup == a:id
       let inst.selected = -1
       let inst.popup = -1
+      let inst.popup_url = ''
       redrawtabpanel
       return
     endif
@@ -385,6 +399,7 @@ function! supertabpanel#widgets#rssfeed#click(info) abort
   let inst.selected = idx
   redrawtabpanel
   let item = inst.items[idx]
+  let inst.popup_url = item.link
   let loading = [item.title, '', '読み込み中...']
   if inst.popup > 0 && popup_getpos(inst.popup) != {}
     call popup_settext(inst.popup, loading)
@@ -396,7 +411,7 @@ function! supertabpanel#widgets#rssfeed#click(info) abort
           \ padding: [0,1,0,1],
           \ scrollbar: 1,
           \ close: 'click',
-          \ filter: function('s:on_popup_filter'),
+          \ filter: function('s:on_popup_filter', [id]),
           \ callback: function('s:on_popup_close'),
           \ highlight: 'SuperTabPanelRss',
           \ borderhighlight: ['SuperTabPanelSep'],
@@ -466,6 +481,7 @@ function! s:deactivate(id) abort
     call popup_close(inst.popup)
   endif
   let inst.popup = -1
+  let inst.popup_url = ''
   let inst.selected = -1
 endfunction
 
@@ -489,6 +505,7 @@ function! supertabpanel#widgets#rssfeed#instance(params) abort
         \ items: [],
         \ selected: -1,
         \ popup: -1,
+        \ popup_url: '',
         \ job: v:null,
         \ fetch_buf: [],
         \ gen: 0,
